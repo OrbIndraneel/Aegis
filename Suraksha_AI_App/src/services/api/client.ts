@@ -1,15 +1,18 @@
 import { MockDisasterService } from '../mock/mockDisasterService';
+import { SupabaseDirectService, isSupabaseConfigured } from '../supabaseClient';
 import { HazardZone, Shelter, EvacuationRoute, CascadePrediction, AuthorityStats, Coordinate } from '../../types/disaster';
 import { AlertMessage, AlertDispatchPayload } from '../../types/alert';
 
 /**
  * Centralized API Service Abstraction Layer for SURAKSHA AI.
  * 
- * Supports Dual-Mode:
- * 1. Live FastAPI Backend Service (when backend URL is reachable & configured)
- * 2. High-fidelity Mock Disaster Service fallback (for offline or local demo testing)
+ * Supports Hybrid-Mode:
+ * 1. Direct Supabase Client (when configured in .env for fast direct DB & Auth queries)
+ * 2. Live FastAPI Backend Service (for ML prediction & OR-Tools routing)
+ * 3. High-fidelity Mock Disaster Service fallback (for offline or local demo testing)
  */
 export class ApiClient {
+
   private static baseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
   private static enableMock = process.env.EXPO_PUBLIC_ENABLE_MOCK_SERVICE === 'true';
 
@@ -89,6 +92,13 @@ export class ApiClient {
   public static async fetchShelters(city: string = 'Vadodara'): Promise<Shelter[]> {
     if (this.enableMock) {
       return await MockDisasterService.getShelters(city);
+    }
+    if (isSupabaseConfigured()) {
+      try {
+        return await SupabaseDirectService.fetchSheltersDirect();
+      } catch (err) {
+        console.warn('[ApiClient] Direct Supabase shelter fetch failed, falling back to FastAPI:', err);
+      }
     }
     try {
       const lat = city === 'Uttarakhand' ? 30.0668 : 22.3072;

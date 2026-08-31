@@ -21,6 +21,8 @@ if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 from ml_engine.inference import CascadePredictor
+from data_pipeline.landslide_data_pipeline import LandslideDataPipeline
+from ml_engine.models.landslide_model import LandslideSusceptibilityModel
 
 # Stage 1 (XGBoost) Asset Paths (Checked both relative to backend-server root and current file)
 SIH_DIR_PRIMARY = os.path.join(BACKEND_DIR, "SIH")
@@ -47,14 +49,30 @@ STAGE1_FEATURE_COLS = [
 class CombinedDisasterEngine:
     """
     Unified Multi-Stage Disaster Early Warning Engine.
-    Executes Stage 1 (XGBoost Local Risk) + Stage 2 (GAT Spatial Cascade Hazard).
+    Executes Stage 1 (XGBoost Local Risk & Landslide Susceptibility) + Stage 2 (GAT Spatial Cascade Hazard).
     """
 
     def __init__(self):
         print("Initializing Combined Disaster Engine...")
         self._load_stage1_model()
         self.gat_predictor = CascadePredictor()
-        print("[OK] Combined Disaster Engine (Approach A - Stage 1 & Stage 2) ready.")
+        self.landslide_pipeline = LandslideDataPipeline()
+        self.landslide_model = LandslideSusceptibilityModel()
+        print("[OK] Combined Disaster Engine (SIH 26001 Landslide & Cascade) ready.")
+
+    def predict_landslide_risk(self, zone_inputs: dict) -> dict:
+        """
+        SIH 26001 Primary Predictor: Ingests weather, soil moisture, DEM slope, and historical data,
+        returning landslide susceptibility score, risk level, and SHAP feature attributions.
+        """
+        processed_features = self.landslide_pipeline.process(zone_inputs)
+        model_output = self.landslide_model.predict(processed_features)
+
+        return {
+            "processed_features": processed_features,
+            "landslide_assessment": model_output,
+        }
+
 
     def _load_stage1_model(self):
         """Loads trained XGBoost model and categorical encoders."""
@@ -200,10 +218,13 @@ class CombinedDisasterEngine:
         river_level_m = zone_inputs.get("Water_Level_m", zone_inputs.get("river_level_m", 2.0))
         elevation_m = zone_inputs.get("Elevation_m", zone_inputs.get("elevation_m", 200.0))
 
-        # 1. Execute Stage 1 (XGBoost Local Flood Risk)
+        # 1. Execute SIH 26001 Primary Landslide Susceptibility Predictor
+        landslide_output = self.predict_landslide_risk(zone_inputs)
+
+        # 2. Execute Stage 1 (XGBoost Local Flood Risk)
         stage1_output = self.run_stage1_local_flood_risk(zone_inputs)
 
-        # 2. Execute Stage 2 (GAT Spatial Cascade Hazard Prediction)
+        # 3. Execute Stage 2 (GAT Spatial Cascade Hazard Prediction)
         stage2_output = self.run_stage2_spatial_cascade_hazard(
             latitude=lat,
             longitude=lon,
@@ -216,11 +237,12 @@ class CombinedDisasterEngine:
             vegetation_ndvi=zone_inputs.get("vegetation_ndvi", 0.50),
         )
 
-        # 3. Unified Synthesis (Combining Stage 1 Local Risk & Stage 2 Cascade Probability)
+        # 4. Unified Synthesis (Combining Landslide Risk, Local Risk & Stage 2 Cascade Probability)
         s1_risk = stage1_output["risk_score"]
         s2_prob = stage2_output["cascade_probability"]
+        ls_score = landslide_output["landslide_assessment"]["landslide_susceptibility_score"]
 
-        unified_risk_score = round(0.45 * s1_risk + 0.55 * s2_prob, 3)
+        unified_risk_score = round(0.40 * ls_score + 0.30 * s1_risk + 0.30 * s2_prob, 3)
 
         if unified_risk_score >= 0.75:
             unified_level = "Critical"
@@ -231,12 +253,12 @@ class CombinedDisasterEngine:
         elif unified_risk_score >= 0.50:
             unified_level = "High"
             action = (
-                f"HIGH ALERT: Monitor river stage and slope movement. Secondary hazard "
+                f"HIGH ALERT: Monitor slope movement and river stage. Secondary hazard "
                 f"'{stage2_output['secondary_cascade_hazard']}' probable within {stage2_output['estimated_lead_time_mins']} mins."
             )
         elif unified_risk_score >= 0.30:
             unified_level = "Moderate"
-            action = "MODERATE RISK: Flood advisory active. Alert local emergency management teams."
+            action = "MODERATE RISK: Landslide advisory active. Alert local emergency management teams."
         else:
             unified_level = "Low"
             action = "LOW RISK: Conditions normal. No immediate action required."
@@ -247,6 +269,7 @@ class CombinedDisasterEngine:
                 "longitude": lon,
                 "district_id": district_id,
             },
+            "sih_26001_landslide_risk": landslide_output["landslide_assessment"],
             "stage_1_local_flood_risk": stage1_output,
             "stage_2_spatial_cascade_hazard": stage2_output,
             "unified_disaster_assessment": {
@@ -255,3 +278,4 @@ class CombinedDisasterEngine:
                 "action_recommendation": action,
             },
         }
+

@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import predict_routes, evacuation_routes, shelter_routes, sos_routes, alert_routes
+from api.routes import predict_routes, evacuation_routes, shelter_routes, sos_routes, alert_routes, landslide_routes
 
 app = FastAPI(
     title="Disaster Management AI Platform API",
-    description="Backend API powering GNN Cascade Predictions and Dynamic Evacuation Routing",
+    description="Backend API powering GNN Cascade Predictions, SIH 26001 Landslide Monitoring & Dynamic Evacuation Routing",
     version="1.0.0"
 )
 
@@ -17,10 +17,12 @@ app.add_middleware(
 )
 
 app.include_router(predict_routes.router, prefix="/api", tags=["Cascade Prediction"])
+app.include_router(landslide_routes.router, prefix="/api/landslide", tags=["Landslide Intelligence (SIH 26001)"])
 app.include_router(evacuation_routes.router, prefix="/api", tags=["Route Optimization"])
 app.include_router(shelter_routes.router, prefix="/api", tags=["Safe Shelters"])
 app.include_router(sos_routes.router, prefix="/api", tags=["Emergency SOS Alerts"])
 app.include_router(alert_routes.router, prefix="/api", tags=["Broadcast Alerts"])
+
 
 
 @app.get("/")
