@@ -12,6 +12,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
+  if (moduleName === 'lucide-react-native') {
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/lucide-react-native/dist/cjs/lucide-react-native.js'),
+      type: 'sourceFile',
+    };
+  }
   if (defaultResolver) {
     return defaultResolver(context, moduleName, platform);
   }

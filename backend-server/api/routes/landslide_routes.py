@@ -25,28 +25,28 @@ def get_engine() -> CombinedDisasterEngine:
 
 # Pydantic Schemas
 class LandslidePredictSchema(BaseModel):
-    latitude: float = Field(..., example=27.33)
-    longitude: float = Field(..., example=88.61)
-    district_id: Optional[str] = Field("SIKKIM_ZONE_01", example="SIKKIM_ZONE_01")
-    rainfall_mm: Optional[float] = Field(100.0, example=120.0)
-    rainfall_24h_mm: Optional[float] = Field(100.0, example=120.0)
-    rainfall_48h_mm: Optional[float] = Field(160.0, example=180.0)
-    rainfall_72h_mm: Optional[float] = Field(220.0, example=250.0)
-    slope_angle_deg: Optional[float] = Field(32.0, example=32.0)
-    soil_moisture_pct: Optional[float] = Field(75.0, example=75.0)
-    elevation_m: Optional[float] = Field(550.0, example=550.0)
-    vegetation_ndvi: Optional[float] = Field(0.45, example=0.45)
-    historical_landslides_count: Optional[int] = Field(2, example=2)
+    latitude: float = Field(..., json_schema_extra={"example": 27.33})
+    longitude: float = Field(..., json_schema_extra={"example": 88.61})
+    district_id: Optional[str] = Field("SIKKIM_ZONE_01", json_schema_extra={"example": "SIKKIM_ZONE_01"})
+    rainfall_mm: Optional[float] = Field(100.0, json_schema_extra={"example": 120.0})
+    rainfall_24h_mm: Optional[float] = Field(100.0, json_schema_extra={"example": 120.0})
+    rainfall_48h_mm: Optional[float] = Field(160.0, json_schema_extra={"example": 180.0})
+    rainfall_72h_mm: Optional[float] = Field(220.0, json_schema_extra={"example": 250.0})
+    slope_angle_deg: Optional[float] = Field(32.0, json_schema_extra={"example": 32.0})
+    soil_moisture_pct: Optional[float] = Field(75.0, json_schema_extra={"example": 75.0})
+    elevation_m: Optional[float] = Field(550.0, json_schema_extra={"example": 550.0})
+    vegetation_ndvi: Optional[float] = Field(0.45, json_schema_extra={"example": 0.45})
+    historical_landslides_count: Optional[int] = Field(2, json_schema_extra={"example": 2})
 
 
 class FieldReportSchema(BaseModel):
-    reporter_id: str = Field(..., example="USER_98765")
-    reporter_role: Optional[str] = Field("Civilian", example="Civilian")
-    latitude: float = Field(..., example=27.33)
-    longitude: float = Field(..., example=88.61)
-    incident_type: str = Field(..., example="Slope Crack")  # 'Slope Crack', 'Mudslide', 'Rockfall', 'Blocked Road'
-    media_url: Optional[str] = Field(None, example="https://storage.suraksha.ai/reports/img_123.jpg")
-    description: Optional[str] = Field(None, example="Large slope crack visible near highway NH10.")
+    reporter_id: str = Field(..., json_schema_extra={"example": "USER_98765"})
+    reporter_role: Optional[str] = Field("Civilian", json_schema_extra={"example": "Civilian"})
+    latitude: float = Field(..., json_schema_extra={"example": 27.33})
+    longitude: float = Field(..., json_schema_extra={"example": 88.61})
+    incident_type: str = Field(..., json_schema_extra={"example": "Slope Crack"})  # 'Slope Crack', 'Mudslide', 'Rockfall', 'Blocked Road'
+    media_url: Optional[str] = Field(None, json_schema_extra={"example": "https://storage.suraksha.ai/reports/img_123.jpg"})
+    description: Optional[str] = Field(None, json_schema_extra={"example": "Large slope crack visible near highway NH10."})
 
 
 # In-Memory Fallback Stores for Field Reports & Priority Queue
@@ -82,7 +82,7 @@ async def predict_landslide_risk(inputs: LandslidePredictSchema):
     risk classification, and GAT hazard polygons.
     """
     engine = get_engine()
-    result = engine.predict(inputs.dict())
+    result = engine.predict(inputs.model_dump())
 
     return {
         "status": "success",
@@ -115,7 +115,7 @@ async def submit_field_report(report: FieldReportSchema):
     report_id = str(uuid.uuid4())
     record = {
         "id": report_id,
-        **report.dict(),
+        **report.model_dump(),
         "verification_status": "Pending",
         "created_at": "2026-09-01T00:00:00Z",
     }

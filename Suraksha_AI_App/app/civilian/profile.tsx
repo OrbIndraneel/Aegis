@@ -6,6 +6,7 @@ import { Header } from '../../src/components/common/Header';
 import { PhoneCall, HeartPulse, WifiOff, Globe, LogOut } from 'lucide-react-native';
 import { useUserStore } from '../../src/store/useUserStore';
 import { useTranslation, LanguageCode } from '../../src/i18n';
+import { EmergencyConsentCard } from '../../src/components/civilian/EmergencyConsentCard';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -66,6 +67,9 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* Emergency Medical Consent & ABDM Access Transparency */}
+        <EmergencyConsentCard civilianId={profile.id} />
 
         {/* Emergency Contacts List Card */}
         <View style={styles.card}>

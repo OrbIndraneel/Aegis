@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  backend-api:
+    build: .
+    container_name: disaster_management_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres.ncucomisltkazlxnimig:Indraneel%4007@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+      - USE_MOCK_FALLBACK=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

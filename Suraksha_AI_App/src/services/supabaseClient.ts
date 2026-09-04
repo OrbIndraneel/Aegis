@@ -1,19 +1,45 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Shelter, HazardZone, EmergencyAlert } from '../types';
+import { Shelter, EmergencyAlert } from '../types';
+import { HazardZone } from '../types/disaster';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key-here';
 
+const isBrowser = typeof window !== 'undefined';
+
+const ssrSafeStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    if (!isBrowser) return null;
+    try {
+      return await AsyncStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (!isBrowser) return;
+    try {
+      await AsyncStorage.setItem(key, value);
+    } catch {}
+  },
+  removeItem: async (key: string): Promise<void> => {
+    if (!isBrowser) return;
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 /**
  * Singleton Direct Supabase Client for React Native / Expo.
- * Configured with AsyncStorage for authentication state persistence.
+ * Configured with SSR-safe storage for authentication state persistence.
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
+    storage: ssrSafeStorage,
+    autoRefreshToken: isBrowser,
+    persistSession: isBrowser,
     detectSessionInUrl: false,
   },
 });
@@ -38,96 +64,89 @@ export class SupabaseDirectService {
    * Fetches active relief shelters directly from Supabase `shelters` table matching mobile app Shelter interface.
    */
   public static async fetchSheltersDirect(): Promise<Shelter[]> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase URL/Key not configured in .env');
-    }
+    if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase
       .from('shelters')
       .select('*')
-      .or('status.eq.OPEN,status.eq.Open');
+      .order('name', { ascending: true });
 
-    if (error) {
-      console.error('[Supabase Error] fetchSheltersDirect:', error.message);
-      throw error;
+    if (error || !data) {
+      console.warn('[SupabaseDirectService] fetchSheltersDirect error:', error);
+      return [];
     }
 
-    return (data || []).map((s: any) => {
-      const totCap = s.total_capacity || s.capacity || 500;
-      const currOcc = s.current_occupancy || 0;
-      const availBeds = Math.max(0, totCap - currOcc);
-      const occPct = Math.round((currOcc / (totCap || 1)) * 100);
-
-      let level: 'Available' | 'Limited' | 'Full' = 'Available';
-      if (currOcc >= totCap) level = 'Full';
-      else if (occPct > 80) level = 'Limited';
-
-      const amen = s.amenities || {};
-
-      return {
-        id: s.id,
-        name: s.name,
-        address: s.address || s.name,
-        coordinate: {
-          latitude: s.latitude || 22.3072,
-          longitude: s.longitude || 73.1812,
-        },
-        capacity: {
-          totalCapacity: totCap,
-          currentOccupancy: currOcc,
-          availableBeds: availBeds,
-          occupancyPercentage: occPct,
-          level: s.capacity_level || level,
-        },
-        totalCapacity: totCap,
-        currentOccupancy: currOcc,
-        status: (s.status?.toUpperCase() as any) || 'OPEN',
-        distanceKm: s.distance_km || 1.2,
-        amenities: {
-          medicalKit: amen.medicalKit ?? s.medical_facilities_available ?? true,
-          foodSupplies: amen.foodSupplies ?? true,
-          cleanWater: amen.cleanWater ?? true,
-          powerGenerator: amen.powerGenerator ?? s.power_generator ?? true,
-          sanitation: amen.sanitation ?? true,
-          petFriendly: amen.petFriendly ?? false,
-        },
-        contactNumber: s.contact_number || s.contact || '108',
-        ndrfUnitId: s.ndrf_unit_id,
-        lastUpdated: s.updated_at ? new Date(s.updated_at).toLocaleTimeString() : new Date().toLocaleTimeString(),
-      };
-    });
+    return data.map((item: any) => ({
+      id: String(item.id),
+      name: item.name,
+      address: item.address || 'Address not listed',
+      coordinate: {
+        latitude: item.latitude ?? 22.3072,
+        longitude: item.longitude ?? 73.1812,
+      },
+      capacity: {
+        totalCapacity: item.total_capacity || item.capacity || 500,
+        currentOccupancy: item.current_occupancy || 0,
+        availableBeds: Math.max(0, (item.total_capacity || 500) - (item.current_occupancy || 0)),
+        occupancyPercentage: Math.round(((item.current_occupancy || 0) / (item.total_capacity || 500)) * 100),
+        level: (item.capacity_level as any) || 'Available',
+      },
+      totalCapacity: item.total_capacity || item.capacity || 500,
+      currentOccupancy: item.current_occupancy || 0,
+      status: (item.status?.toUpperCase() as any) || 'OPEN',
+      distanceKm: item.distance_km || 2.5,
+      amenities: {
+        medicalKit: item.medical_facilities_available ?? item.amenities?.medicalKit ?? true,
+        foodSupplies: (item.food_supplies_days ?? 7) > 0,
+        cleanWater: (item.water_supply_liters ?? 5000) > 0,
+        powerGenerator: item.power_generator ?? item.amenities?.powerGenerator ?? true,
+        sanitation: item.amenities?.sanitation ?? true,
+        petFriendly: item.amenities?.petFriendly ?? false,
+      },
+      contactNumber: item.contact_number || '+91-1800-111-999',
+      ndrfUnitId: item.ndrf_unit_id || 'NDRF-BN-06',
+      lastUpdated: 'Live Supabase DB',
+    }));
   }
 
   /**
-   * Fetches active emergency alerts directly from Supabase `emergency_alerts` table.
+   * Fetches active hazard zones directly from Supabase PostGIS geometry table.
    */
-  public static async fetchAlertsDirect(): Promise<EmergencyAlert[]> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase URL/Key not configured in .env');
-    }
+  public static async fetchHazardsDirect(): Promise<HazardZone[]> {
+    if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase
-      .from('emergency_alerts')
+      .from('hazard_zones')
       .select('*')
-      .order('issued_at', { ascending: false });
+      .eq('is_active', true);
 
-    if (error) {
-      console.error('[Supabase Error] fetchAlertsDirect:', error.message);
-      throw error;
+    if (error || !data) {
+      console.warn('[SupabaseDirectService] fetchHazardsDirect error:', error);
+      return [];
     }
 
-    return (data || []).map((a: any) => ({
-      id: a.id,
-      title: a.title,
-      body: a.body,
-      severity: (a.severity?.toUpperCase() as any) || 'HIGH',
-      disasterType: (a.disaster_type?.toUpperCase() as any) || 'LANDSLIDE',
-      targetRegion: a.target_region,
-      issuedBy: a.issued_by || 'State Disaster Authority',
-      issuedAt: a.issued_at || new Date().toISOString(),
-      actionRequired: (a.action_required as any) || 'EVACUATE_IMMEDIATELY',
-      affectedPopulationEstimate: a.affected_population_estimate || 15000,
-      acknowledgmentRequired: a.acknowledgment_required ?? false,
+    return data.map((item: any) => ({
+      id: String(item.id),
+      name: item.name,
+      type: (item.type?.toUpperCase() as any) || 'LANDSLIDE',
+      severity: (item.severity?.toUpperCase() as any) || 'HIGH',
+      probability: item.probability || 85,
+      riskScore: item.risk_score || 80,
+      affectedPopulation: item.affected_population || item.affected_population_estimate || 0,
+      coordinates: (item.polygon_coordinates || []).map((coord: [number, number]) => ({
+        latitude: coord[0],
+        longitude: coord[1],
+      })),
+      center: {
+        latitude: item.center_latitude || 27.33,
+        longitude: item.center_longitude || 88.61,
+      },
+      radiusMeters: item.radius_meters || 1500,
+      description: item.description || 'Active landslide susceptibility and flash flood danger zone.',
+      predictedSurgeTimeMins: item.predicted_surge_time_mins || item.estimated_lead_time_mins || 45,
+      roadClosuresCount: item.road_closures_count || 0,
+      recommendedAction: item.recommended_action || 'Evacuate immediately via AI-optimized safe routes.',
+      lastUpdated: 'Live Supabase DB',
     }));
   }
 
@@ -139,7 +158,7 @@ export class SupabaseDirectService {
 
     const channel = supabase
       .channel('public:hazard_zones')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hazard_zones' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hazard_zones' }, (payload: any) => {
         const item: any = payload.new;
         onHazardUpdate({
           id: String(item.id),
