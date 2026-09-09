@@ -17,9 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependencies list and install Python packages
+# Copy dependencies list and install CPU-only PyTorch first to minimize memory footprint
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source code
 COPY . .
@@ -27,5 +29,5 @@ COPY . .
 # Expose default HTTP port
 EXPOSE 8000
 
-# Start Gunicorn server with Uvicorn workers bound to dynamic cloud PORT
-CMD ["sh", "-c", "gunicorn -w 2 -k uvicorn.workers.UvicornWorker api.main:app --bind 0.0.0.0:${PORT:-8000}"]
+# Start lightweight Uvicorn server bound directly to dynamic cloud PORT
+CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
