@@ -77,7 +77,8 @@ export class LocationService {
    * Subscribe to live GPS location updates with safe listener cleanup.
    */
   static async watchLocation(
-    onUpdate: (coord: Coordinate) => void
+    onUpdate: (coord: Coordinate) => void,
+    isLowBattery: boolean = false
   ): Promise<Location.LocationSubscription | null> {
     try {
       const hasPermission = await this.requestPermissions();
@@ -85,9 +86,9 @@ export class LocationService {
 
       return await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 5000,
-          distanceInterval: 10,
+          accuracy: isLowBattery ? Location.Accuracy.Balanced : Location.Accuracy.High,
+          timeInterval: isLowBattery ? 20000 : 4000,
+          distanceInterval: isLowBattery ? 30 : 10,
         },
         (loc) => {
           onUpdate({

@@ -8,6 +8,8 @@ import { ConnectionStatus } from '../../src/components/common/ConnectionStatus';
 import { colors, typography, spacing, radius, shadows } from '../../src/theme';
 import { useUserStore } from '../../src/store/useUserStore';
 import { MockSosService, SosReason, SosDispatchRecord } from '../../src/services/mock/mockSosService';
+import { ApiClient } from '../../src/services/api/client';
+import { triggerCriticalHapticPulse } from '../../src/utils/emergencyAlertSound';
 import { useTranslation } from '../../src/i18n';
 
 export default function CivilianSosScreen() {
@@ -19,9 +21,24 @@ export default function CivilianSosScreen() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [activeRecord, setActiveRecord] = useState<SosDispatchRecord | null>(null);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [isOfflineQueued, setIsOfflineQueued] = useState(false);
 
   const handleConfirmSos = async () => {
     setIsTransmitting(true);
+    triggerCriticalHapticPulse();
+
+    // 1. Dispatch through centralized ApiClient (Live FastAPI -> Supabase -> Local Offline Queue)
+    const dispatchResult = await ApiClient.triggerEmergencySos({
+      reason: selectedReason,
+      location: profile.currentLocation || { latitude: 22.3072, longitude: 73.1812 },
+      fullName: profile.fullName || 'Citizen User',
+      phoneNumber: profile.phoneNumber || '+91 00000 00000',
+      bloodGroup: profile.bloodGroup,
+      medicalConditions: profile.medicalConditions,
+    });
+    setIsOfflineQueued(dispatchResult.isOfflineQueued);
+
+    // 2. Keep local mock dispatch UI record active for presentation & countdown
     const record = await MockSosService.triggerSos(
       selectedReason,
       profile.currentLocation || { latitude: 22.3072, longitude: 73.1812 },
@@ -144,6 +161,15 @@ export default function CivilianSosScreen() {
               <Text style={styles.trackingId}>{t('trackingId')}: {activeRecord?.sosId}</Text>
               <Text style={styles.assignedUnit}>{t('assignedUnit')}: {activeRecord?.assignedUnit}</Text>
             </View>
+
+            {isOfflineQueued && (
+              <View style={styles.offlineSyncNotice}>
+                <AlertTriangle size={16} color="#D97706" />
+                <Text style={styles.offlineSyncText}>
+                  Distress signal cached in local offline storage. Will automatically sync to NDRF Command when signal is restored.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.profileCard}>
               <Text style={styles.cardHeaderTitle}>Transmitted Evacuee Profile</Text>
@@ -341,6 +367,24 @@ const styles = StyleSheet.create({
     color: '#71717A',
     fontSize: 11,
     marginTop: 2,
+  },
+  offlineSyncNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  offlineSyncText: {
+    flex: 1,
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: typography.fontWeight.medium,
+    lineHeight: 16,
   },
   profileCard: {
     backgroundColor: '#FFFFFF',

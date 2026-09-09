@@ -1,5 +1,6 @@
 import { MockDisasterService } from '../mock/mockDisasterService';
 import { SupabaseDirectService, isSupabaseConfigured } from '../supabaseClient';
+import { SosQueueService } from '../sos/sosQueueService';
 import { HazardZone, Shelter, EvacuationRoute, CascadePrediction, AuthorityStats, Coordinate } from '../../types/disaster';
 import { AlertMessage, AlertDispatchPayload } from '../../types/alert';
 
@@ -16,29 +17,40 @@ export class ApiClient {
   private static baseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
   private static enableMock = process.env.EXPO_PUBLIC_ENABLE_MOCK_SERVICE === 'true';
 
-  private static async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private static async request<T>(endpoint: string, options: RequestInit = {}, retries: number = 2): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    let lastError: any = null;
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(options.headers || {}),
-        },
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+          },
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        lastError = error;
+        // If aborted or network dropped and we have retries left, wait with exponential backoff
+        if (attempt < retries) {
+          const delayMs = 1000 * Math.pow(2, attempt);
+          console.warn(`[ApiClient] Request to ${endpoint} failed (attempt ${attempt + 1}/${retries + 1}). Retrying in ${delayMs}ms...`);
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
       }
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
     }
+    throw lastError;
   }
 
   public static async fetchHazards(city: string = 'Vadodara'): Promise<HazardZone[]> {
@@ -455,21 +467,72 @@ export class ApiClient {
     }
   }
 
-  public static async updateShelterStatusAuthorized(
-    shelterId: string,
-    payload: { current_occupancy: number; status?: string },
-    authorityHeaders: Record<string, string> = { 'X-Authority-Role': 'SHELTER_MANAGER', 'X-Authority-Shelter': shelterId }
-  ) {
+  public static async triggerEmergencySos(payload: {
+    reason: string;
+    location: Coordinate;
+    fullName: string;
+    phoneNumber: string;
+    bloodGroup?: string;
+    medicalConditions?: string;
+  }): Promise<{ status: string; alertId: string; isOfflineQueued: boolean }> {
+    const alertId = `sos-${Date.now()}`;
+    const blood = payload.bloodGroup || 'Not Specified';
+    const conditions = payload.medicalConditions || 'None Specified';
+
+    // 1. Try FastAPI Backend
     try {
-      return await this.request<any>(`/api/authority/shelters/${shelterId}/status`, {
+      const data = await this.request<any>('/api/sos', {
         method: 'POST',
-        headers: authorityHeaders,
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      console.warn('[ApiClient] Shelter status update failed:', error);
-      return { status: 'success', shelter_id: shelterId, ...payload };
+        body: JSON.stringify({
+          user_id: alertId,
+          user_name: payload.fullName,
+          user_phone: payload.phoneNumber,
+          latitude: payload.location.latitude,
+          longitude: payload.location.longitude,
+          emergency_type: payload.reason,
+          notes: `Blood: ${blood} | Conditions: ${conditions}`,
+        }),
+      }, 1);
+      return { status: 'DISPATCHED', alertId: data.alert_id || alertId, isOfflineQueued: false };
+    } catch (backendError) {
+      console.warn('[ApiClient] Backend SOS dispatch failed, trying Supabase direct...', backendError);
     }
+
+    // 2. Try Direct Supabase Insert
+    if (isSupabaseConfigured()) {
+      try {
+        const { supabase } = await import('../supabaseClient');
+        const { data, error } = await supabase.from('sos_alerts').insert([
+          {
+            user_id: alertId,
+            user_name: payload.fullName,
+            user_phone: payload.phoneNumber,
+            emergency_type: payload.reason,
+            status: 'Pending',
+            notes: `Blood: ${blood} | Conditions: ${conditions}`,
+          }
+        ]).select().single();
+
+        if (!error) {
+          return { status: 'DISPATCHED', alertId: data?.id || alertId, isOfflineQueued: false };
+        }
+      } catch (supaErr) {
+        console.warn('[ApiClient] Supabase direct SOS insert failed:', supaErr);
+      }
+    }
+
+    // 3. Fallback: Enqueue into local offline queue for auto-flush upon reconnect
+    console.log('[ApiClient] All online routes failed. Enqueueing SOS locally...');
+    const queued = await SosQueueService.enqueueAlert({
+      reason: payload.reason,
+      location: payload.location,
+      fullName: payload.fullName,
+      phoneNumber: payload.phoneNumber,
+      bloodGroup: blood,
+      medicalConditions: conditions,
+    });
+
+    return { status: 'QUEUED_OFFLINE', alertId: queued.id, isOfflineQueued: true };
   }
 }
 

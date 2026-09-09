@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { FloatingBottomNav } from '../../src/components/common/FloatingBottomNav';
+import { GlobalEmergencyFab } from '../../src/components/common/GlobalEmergencyFab';
 
 export default function CivilianLayout() {
   return (
@@ -21,6 +22,7 @@ export default function CivilianLayout() {
         <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
         <Tabs.Screen name="offline" options={{ title: 'Offline' }} />
       </Tabs>
+      <GlobalEmergencyFab />
       <FloatingBottomNav />
     </View>
   );

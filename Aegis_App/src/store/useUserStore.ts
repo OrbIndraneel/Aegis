@@ -3,22 +3,50 @@ import { UserRole, UserProfile, EmergencyContact } from '../types/user';
 import { Coordinate } from '../types/disaster';
 import { LocationService } from '../services/location/locationService';
 
+export interface OfflineMedicalCard {
+  bloodGroup: string;
+  allergies: string;
+  chronicConditions: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelation: string;
+  abdmHealthId: string;
+  organDonor: boolean;
+  criticalMedications: string;
+}
+
 interface UserState {
   profile: UserProfile;
   isSosActive: boolean;
   sosCountdown: number;
+  isLowBatteryModeEnabled: boolean;
+  offlineMedicalCard: OfflineMedicalCard;
 
   // Actions
   setRole: (role: UserRole) => void;
   updateLocation: () => Promise<Coordinate>;
   setLanguage: (lang: 'EN' | 'HI' | 'GU') => void;
   toggleOfflineMode: () => void;
+  toggleLowBatteryMode: () => void;
   triggerSos: () => void;
   cancelSos: () => void;
   addEmergencyContact: (contact: Omit<EmergencyContact, 'id'>) => void;
+  updateOfflineMedicalCard: (card: Partial<OfflineMedicalCard>) => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
+  isLowBatteryModeEnabled: false,
+  offlineMedicalCard: {
+    bloodGroup: 'O+ (Positive)',
+    allergies: 'Penicillin, Dust Mites',
+    chronicConditions: 'Asthma (Mild), Hypertensive',
+    emergencyContactName: 'Dr. Rajesh Patel',
+    emergencyContactPhone: '+91 98250 12345',
+    emergencyContactRelation: 'Spouse / Primary',
+    abdmHealthId: '91-4829-1029-4821@abdm',
+    organDonor: true,
+    criticalMedications: 'Albuterol Inhaler (PRN), Amlodipine 5mg',
+  },
   profile: {
     id: 'demo-civilian-01',
     role: 'CIVILIAN',
@@ -68,6 +96,26 @@ export const useUserStore = create<UserState>((set, get) => ({
     set((state) => ({
       profile: { ...state.profile, offlineModeEnabled: !state.profile.offlineModeEnabled },
     }));
+  },
+
+  toggleLowBatteryMode: () => {
+    set((state) => {
+      const next = !state.isLowBatteryModeEnabled;
+      import('@react-native-async-storage/async-storage').then((storage) => {
+        storage.default.setItem('@aegis_low_battery_mode', JSON.stringify(next)).catch(() => {});
+      });
+      return { isLowBatteryModeEnabled: next };
+    });
+  },
+
+  updateOfflineMedicalCard: (cardUpdate) => {
+    set((state) => {
+      const updated = { ...state.offlineMedicalCard, ...cardUpdate };
+      import('@react-native-async-storage/async-storage').then((storage) => {
+        storage.default.setItem('@aegis_emergency_medical_card', JSON.stringify(updated)).catch(() => {});
+      });
+      return { offlineMedicalCard: updated };
+    });
   },
 
   triggerSos: () => {

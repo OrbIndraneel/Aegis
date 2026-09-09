@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Header } from '../../src/components/common/Header';
-import { PhoneCall, HeartPulse, WifiOff, Globe, LogOut } from 'lucide-react-native';
+import { PhoneCall, HeartPulse, WifiOff, Globe, LogOut, Zap, ShieldCheck } from 'lucide-react-native';
 import { useUserStore } from '../../src/store/useUserStore';
 import { useTranslation, LanguageCode } from '../../src/i18n';
 import { EmergencyConsentCard } from '../../src/components/civilian/EmergencyConsentCard';
+import { OfflineMedicalCardModal } from '../../src/components/civilian/OfflineMedicalCardModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, toggleOfflineMode } = useUserStore();
+  const { profile, toggleOfflineMode, isLowBatteryModeEnabled, toggleLowBatteryMode } = useUserStore();
   const { t, language, changeLanguage } = useTranslation();
+  const [showMedicalCard, setShowMedicalCard] = useState(false);
 
   const handleLogout = () => {
     router.replace('/');
@@ -47,6 +49,29 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Crisis Low-Battery Mode Card */}
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.headerIconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                <Zap size={16} color="#16A34A" />
+              </View>
+              <View style={styles.flex1}>
+                <Text style={styles.cardTitle}>Crisis Low-Battery Saver</Text>
+                <Text style={styles.cardSubtitle}>
+                  Throttles GPS tracking interval to 20s to conserve up to 70% device battery during power blackouts.
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={isLowBatteryModeEnabled}
+              onValueChange={toggleLowBatteryMode}
+              trackColor={{ false: '#E4E4E7', true: '#16A34A' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
         {/* Medical Information Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -66,6 +91,17 @@ export default function ProfileScreen() {
               <Text style={styles.infoValue}>{profile.medicalConditions}</Text>
             </View>
           </View>
+
+          {/* 1-Tap Offline Health Card Button */}
+          <TouchableOpacity
+            style={styles.healthCardButton}
+            onPress={() => setShowMedicalCard(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open First Responder Emergency Health Card"
+          >
+            <ShieldCheck size={16} color="#FFFFFF" />
+            <Text style={styles.healthCardButtonText}>VIEW FIRST-RESPONDER HEALTH CARD (OFFLINE)</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Emergency Medical Consent & ABDM Access Transparency */}
@@ -153,6 +189,12 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* 100% Offline Emergency Health Card Modal */}
+      <OfflineMedicalCardModal
+        visible={showMedicalCard}
+        onClose={() => setShowMedicalCard(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -243,6 +285,28 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
     marginTop: 3,
+  },
+  healthCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  healthCardButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   contactsContainer: {
     gap: 2,
