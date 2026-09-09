@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "SURAKSHA AI",
-    "slug": "suraksha-ai",
+    "name": "AEGIS AI",
+    "slug": "aegis-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "suraksha-ai",
+    "scheme": "aegis-ai",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.suraksha.ai",
+      "bundleIdentifier": "com.aegis.ai",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "SURAKSHA AI requires location permissions to display live disaster hazard proximity and calculate dynamic safe evacuation routes.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "SURAKSHA AI requires background location permissions to alert you of incoming flash floods and evacuation orders in your immediate area."
+        "NSLocationWhenInUseUsageDescription": "AEGIS AI requires location permissions to display live disaster hazard proximity and calculate dynamic safe evacuation routes.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "AEGIS AI requires background location permissions to alert you of incoming flash floods and evacuation orders in your immediate area."
       }
     },
     "android": {
-      "package": "com.suraksha.ai",
+      "package": "com.aegis.ai",
       "config": {
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
@@ -35,14 +35,12 @@
         "POST_NOTIFICATIONS",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
-        "INTERNET",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "INTERNET"
       ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -58,7 +56,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow SURAKSHA AI to use your location to calculate live safe evacuation paths away from flood & landslide zones."
+          "locationAlwaysAndWhenInUsePermission": "Allow AEGIS AI to use your location to calculate live safe evacuation paths away from flood & landslide zones."
         }
       ],
       [

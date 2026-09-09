@@ -1,4 +1,4 @@
-# 🛰️ Disaster Management AI Platform
+# 🛡️ AEGIS AI — Disaster Management Platform
 
 > **Smart India Hackathon (SIH) 2026 Target Project**  
 > An AI-powered platform for early cascade disaster prediction and dynamic hazard-avoiding evacuation route optimization.

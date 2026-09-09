@@ -3,11 +3,16 @@ from api.schemas.disaster import HazardPredictionRequest, HazardPredictionRespon
 from database.connection import get_db
 from database.repositories import SpatialHazardRepository
 from ml_engine.combined_disaster_engine import CombinedDisasterEngine
+from security.rate_limiter import rate_limit, RateLimitTier
 
 router = APIRouter()
 engine = CombinedDisasterEngine()
 
-@router.post("/predict-cascade", response_model=HazardPredictionResponse)
+@router.post(
+    "/predict-cascade",
+    response_model=HazardPredictionResponse,
+    dependencies=[Depends(rate_limit(max_requests=RateLimitTier.CONTROLLED[0], window_seconds=RateLimitTier.CONTROLLED[1]))]
+)
 def predict_cascade(request: HazardPredictionRequest, db=Depends(get_db)):
     # Run Combined Multi-Stage Disaster Engine (Approach A: XGBoost + PyTorch GAT)
     zone_inputs = {

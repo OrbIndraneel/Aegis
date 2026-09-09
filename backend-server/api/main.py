@@ -16,7 +16,7 @@ from api.routes import (
 from database.connection import get_engine
 from security.middleware import SecurityHeadersMiddleware, RequestIDMiddleware
 
-logger = logging.getLogger("suraksha_main")
+logger = logging.getLogger("aegis_main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     print("[SHUTDOWN] Backend services shutting down gracefully.")
 
 app = FastAPI(
-    title="Disaster Management AI Platform API",
+    title="Aegis AI — Disaster Management Platform API",
     description="Backend API powering GNN Cascade Predictions, SIH 26001 Landslide Monitoring, Dynamic Evacuation Routing, Production RBAC & ABDM Medical Access",
     version="1.1.0",
     lifespan=lifespan

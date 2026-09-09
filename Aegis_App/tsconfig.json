@@ -1,0 +1,39 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@/assets/*": [
+        "./assets/*"
+      ],
+      "expo-router/src/*": [
+        "./node_modules/expo-router/build/*"
+      ],
+      "expo-asset": [
+        "./src/types/ambient.d.ts"
+      ],
+      "expo-image": [
+        "./src/types/ambient.d.ts"
+      ],
+      "expo": [
+        "./node_modules/expo/build/Expo.d.ts"
+      ],
+      "expo/src/*": [
+        "./src/types/ambient.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

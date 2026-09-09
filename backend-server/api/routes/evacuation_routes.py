@@ -3,10 +3,15 @@ from api.schemas.disaster import EvacuationRouteRequest, EvacuationRouteResponse
 from database.connection import get_db
 from database.repositories import SpatialShelterRepository, haversine_distance
 from optimization.route_optimizer import EvacuationRouteOptimizer
+from security.rate_limiter import rate_limit, RateLimitTier
 
 router = APIRouter()
 
-@router.post("/evacuation-route", response_model=EvacuationRouteResponse)
+@router.post(
+    "/evacuation-route",
+    response_model=EvacuationRouteResponse,
+    dependencies=[Depends(rate_limit(max_requests=RateLimitTier.CONTROLLED[0], window_seconds=RateLimitTier.CONTROLLED[1]))]
+)
 def calculate_evacuation_route(request: EvacuationRouteRequest, db=Depends(get_db)):
     shelter_repo = SpatialShelterRepository(db_session=db)
     nearby_shelters = shelter_repo.get_nearby_shelters(request.user_lat, request.user_lng)

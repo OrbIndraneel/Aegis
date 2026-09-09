@@ -13,9 +13,18 @@ from security.scope import AuthorityContext
 
 logger = logging.getLogger("suraksha_auth")
 
-# In production, set AUTHORITY_DEMO_MODE=false to strictly require credentials.
-DEMO_MODE = os.getenv("AUTHORITY_DEMO_MODE", "true").lower() in ("true", "1", "yes")
-VALID_AUTHORITY_TOKENS = set(filter(None, os.getenv("AUTHORITY_API_KEYS", "dev-auth-key-2026,gsdma-secure-token").split(",")))
+def is_demo_mode() -> bool:
+    """Returns True only if AUTHORITY_DEMO_MODE is explicitly enabled."""
+    return os.getenv("AUTHORITY_DEMO_MODE", "true").lower() in ("true", "1", "yes")
+
+def get_valid_authority_tokens() -> set:
+    """Reads configured authority tokens. Defaults to empty set in non-demo environments."""
+    configured = os.getenv("AUTHORITY_API_KEYS", "")
+    if configured:
+        return set(filter(None, [t.strip() for t in configured.split(",")]))
+    if is_demo_mode():
+        return {"dev-auth-key-2026", "gsdma-secure-token"}
+    return set()
 
 
 def get_current_authority(
@@ -29,10 +38,13 @@ def get_current_authority(
     Extracts authenticated authority context from request headers or bearer tokens.
     Guarantees that unauthorized callers cannot escalate to ADMIN.
     """
+    demo_mode = is_demo_mode()
+    valid_tokens = get_valid_authority_tokens()
+
     # 1. Bearer Token Authentication (if provided)
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:].strip()
-        if token not in VALID_AUTHORITY_TOKENS and not DEMO_MODE:
+        if token not in valid_tokens and not demo_mode:
             logger.warning("[AUTH] Invalid bearer token supplied.")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,7 +63,7 @@ def get_current_authority(
             )
     else:
         # If no role header is supplied:
-        if not DEMO_MODE:
+        if not demo_mode:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authority authentication required. Please provide 'X-Authority-Role' or valid 'Authorization' header."
@@ -69,7 +81,7 @@ def get_current_authority(
         jurisdiction_type = "SHELTER"
 
     return AuthorityContext(
-        authority_id=x_authority_id or ("OFF-DEMO-01" if DEMO_MODE else "OFF-ANON"),
+        authority_id=x_authority_id or ("OFF-DEMO-01" if demo_mode else "OFF-ANON"),
         role=role,
         jurisdiction_type=jurisdiction_type,
         jurisdiction_id=x_authority_jurisdiction or "ALL",
