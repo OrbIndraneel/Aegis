@@ -6,13 +6,18 @@ interface Props {
   hazards?: any[];
   shelters?: any[];
   evacuationRoute?: any;
+  tracedPath?: any[];
+  activeCorridorPolyline?: any[];
+  trackedUnits?: any[];
   userLocation?: any;
+  roadClosures?: any[];
   onSelectHazard?: (h: any) => void;
   onSelectShelter?: (s: any) => void;
+  onSelectUnit?: (u: any) => void;
   layers?: any;
 }
 
-export const HazardMap: React.FC<Props> = () => {
+export const HazardMap: React.FC<Props> = ({ tracedPath, trackedUnits, evacuationRoute }) => {
   return (
     <View style={styles.webMapContainer}>
       <Svg width="100%" height="100%" viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
@@ -133,15 +138,29 @@ export const HazardMap: React.FC<Props> = () => {
           Yousuf Shah Shrine
         </SvgText>
 
-        {/* BRIGHT GREEN EVACUATION ROUTE POLYLINE */}
-        <Polyline
-          points="22,258 135,232 170,165 300,60"
-          fill="none"
-          stroke="#22C55E"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {/* BRIGHT GREEN EVACUATION ROUTE POLYLINE (ONLY WHEN EVACUATION ROUTE ACTIVE) */}
+        {evacuationRoute && (
+          <Polyline
+            points="22,258 135,232 170,165 300,60"
+            fill="none"
+            stroke="#22C55E"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* BLUE TRACED PATH */}
+        {tracedPath && tracedPath.length > 1 && (
+          <Polyline
+            points="22,258 80,245 135,232"
+            fill="none"
+            stroke="#2563EB"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
 
         {/* USER LOCATION BLUE DOT */}
         <G transform="translate(22, 258)">

@@ -228,3 +228,34 @@ export interface AuthorityStatistics {
   ndrfTeamsDeployed: number;
   activeBroadcastAlerts: number;
 }
+
+export type TrackedRole = 'AMBULANCE' | 'RESCUE_BOAT' | 'NDRF_TRUCK' | 'CIVILIAN';
+export type TrackedStatus = 'EN_ROUTE' | 'ON_SCENE' | 'EVACUATING' | 'STANDBY';
+
+export interface TrackedUnit {
+  unitId: string;
+  name: string;
+  role: TrackedRole;
+  coordinate: Coordinate;
+  heading?: number;
+  speedKmH?: number;
+  status: TrackedStatus;
+  targetCivilianId?: string;
+  targetLocation?: Coordinate;
+  tracedPath?: Coordinate[];
+  lastUpdated?: number;
+}
+
+export interface TelemetryPacket {
+  type: 'LOCATION_UPDATE' | 'FLEET_SNAPSHOT' | 'PING' | 'PONG';
+  unitId?: string;
+  name?: string;
+  role?: TrackedRole;
+  coordinate?: Coordinate;
+  heading?: number;
+  speedKmH?: number;
+  status?: TrackedStatus;
+  targetCivilianId?: string;
+  timestamp?: number;
+  units?: TrackedUnit[];
+}

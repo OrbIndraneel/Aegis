@@ -1,19 +1,23 @@
 import React, { useRef, useEffect, Component, ReactNode } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import MapView, { Polygon, Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
-import { Hazard, Shelter, EvacuationRoute, RoadClosureMarker, Coordinate } from '../../types';
+import { View, StyleSheet, Text, Platform } from 'react-native';
+import MapView, { Polygon, Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Hazard, Shelter, EvacuationRoute, RoadClosureMarker, Coordinate, TrackedUnit } from '../../types';
 import { colors, radius, spacing, typography, shadows } from '../../theme';
-import { AlertTriangle, Home, MapPin, Navigation, ShieldAlert, Crosshair } from 'lucide-react-native';
+import { AlertTriangle, Home, MapPin, Navigation, ShieldAlert, Crosshair, HeartPulse, Truck, User } from 'lucide-react-native';
 import { HazardMap as WebFallbackMap } from './HazardMap.web';
 
 interface Props {
-  hazards: Hazard[];
-  shelters: Shelter[];
+  hazards?: Hazard[];
+  shelters?: Shelter[];
   evacuationRoute?: EvacuationRoute | null;
+  tracedPath?: Coordinate[];
+  activeCorridorPolyline?: Coordinate[];
+  trackedUnits?: TrackedUnit[];
   roadClosures?: RoadClosureMarker[];
   userLocation?: Coordinate | null;
   onSelectHazard?: (hazard: Hazard) => void;
   onSelectShelter?: (shelter: Shelter) => void;
+  onSelectUnit?: (unit: TrackedUnit) => void;
   layers?: {
     hazards: boolean;
     shelters: boolean;
@@ -55,10 +59,14 @@ export const HazardMap: React.FC<Props> = ({
   hazards = [],
   shelters = [],
   evacuationRoute,
+  tracedPath = [],
+  activeCorridorPolyline,
+  trackedUnits = [],
   roadClosures = [],
   userLocation,
   onSelectHazard,
   onSelectShelter,
+  onSelectUnit,
   layers = { hazards: true, shelters: true, routes: true, roadClosures: true },
 }) => {
   const mapRef = useRef<MapView | null>(null);
@@ -112,11 +120,11 @@ export const HazardMap: React.FC<Props> = ({
         <MapView
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_DEFAULT}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
           initialRegion={initialRegion}
           showsUserLocation={isValidCoordinate(userLocation)}
           showsMyLocationButton={false}
-          showsCompass={false}
+          showsCompass={true}
         >
           {/* 1. HAZARD POLYGONS */}
           {layers.hazards &&
@@ -138,16 +146,28 @@ export const HazardMap: React.FC<Props> = ({
             })}
 
           {/* 2. EVACUATION ROUTE POLYLINES */}
-          {layers.routes && evacuationRoute?.polyline && (
+          {layers.routes && (
             <>
-              {Array.isArray(evacuationRoute.polyline) && (
+              {/* Active Corridor Override */}
+              {Array.isArray(activeCorridorPolyline) && activeCorridorPolyline.length > 1 && (
+                <Polyline
+                  coordinates={activeCorridorPolyline.filter(isValidCoordinate)}
+                  strokeColor={colors.status.success}
+                  strokeWidth={6}
+                />
+              )}
+
+              {/* Standard AI Route Polyline */}
+              {evacuationRoute?.polyline && Array.isArray(evacuationRoute.polyline) && (
                 <Polyline
                   coordinates={evacuationRoute.polyline.filter(isValidCoordinate)}
-                  strokeColor={colors.status.success}
+                  strokeColor="rgba(34, 197, 94, 0.65)"
                   strokeWidth={5}
                 />
               )}
-              {Array.isArray(evacuationRoute.alternativePolyline) && (
+
+              {/* Alternative Route Polyline */}
+              {Array.isArray(evacuationRoute?.alternativePolyline) && (
                 <Polyline
                   coordinates={evacuationRoute.alternativePolyline.filter(isValidCoordinate)}
                   strokeColor={colors.primary.main}
@@ -155,7 +175,9 @@ export const HazardMap: React.FC<Props> = ({
                   lineDashPattern={[6, 4]}
                 />
               )}
-              {Array.isArray(evacuationRoute.dangerousSegmentsPolyline) && (
+
+              {/* Dangerous Corridor Polyline */}
+              {Array.isArray(evacuationRoute?.dangerousSegmentsPolyline) && (
                 <Polyline
                   coordinates={evacuationRoute.dangerousSegmentsPolyline.filter(isValidCoordinate)}
                   strokeColor={colors.severity.CRITICAL.main}
@@ -163,10 +185,75 @@ export const HazardMap: React.FC<Props> = ({
                   lineDashPattern={[4, 4]}
                 />
               )}
+
+              {/* REAL-TIME TRACED PATH (Breadcrumb Trail of actual movement) */}
+              {Array.isArray(tracedPath) && tracedPath.length > 1 && (
+                <Polyline
+                  coordinates={tracedPath.filter(isValidCoordinate)}
+                  strokeColor="#2563EB"
+                  strokeWidth={6}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )}
+
+              {/* Fleet Units Traced Breadcrumbs */}
+              {trackedUnits.map((unit) => {
+                if (unit.tracedPath && unit.tracedPath.length > 1) {
+                  return (
+                    <Polyline
+                      key={`fleet-trace-${unit.unitId}`}
+                      coordinates={unit.tracedPath.filter(isValidCoordinate)}
+                      strokeColor={unit.role === 'AMBULANCE' ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.7)'}
+                      strokeWidth={4}
+                      lineDashPattern={[4, 3]}
+                    />
+                  );
+                }
+                return null;
+              })}
             </>
           )}
 
-          {/* 3. SHELTER MARKERS */}
+          {/* 3. LIVE TRACKED FLEET & SOS UNITS */}
+          {trackedUnits.map((unit) => {
+            if (!isValidCoordinate(unit.coordinate)) return null;
+            const isAmbulance = unit.role === 'AMBULANCE';
+            const isNdrf = unit.role === 'NDRF_TRUCK' || unit.role === 'RESCUE_BOAT';
+
+            return (
+              <Marker
+                key={`tracked-${unit.unitId}`}
+                coordinate={unit.coordinate}
+                rotation={unit.heading || 0}
+                anchor={{ x: 0.5, y: 0.5 }}
+                title={`${unit.name} • ${unit.speedKmH || 0} km/h`}
+                description={`Status: ${unit.status}`}
+                onPress={() => onSelectUnit?.(unit)}
+              >
+                <View
+                  style={[
+                    styles.vehiclePin,
+                    isAmbulance
+                      ? styles.ambulancePin
+                      : isNdrf
+                      ? styles.ndrfPin
+                      : styles.civilianPin,
+                  ]}
+                >
+                  {isAmbulance ? (
+                    <HeartPulse size={16} color="#FFF" />
+                  ) : isNdrf ? (
+                    <Truck size={16} color="#FFF" />
+                  ) : (
+                    <User size={14} color="#FFF" />
+                  )}
+                </View>
+              </Marker>
+            );
+          })}
+
+          {/* 4. SHELTER MARKERS */}
           {layers.shelters &&
             shelters.map((shelter) => {
               if (!isValidCoordinate(shelter.coordinate)) return null;
@@ -192,7 +279,7 @@ export const HazardMap: React.FC<Props> = ({
               );
             })}
 
-          {/* 4. ROAD CLOSURES */}
+          {/* 5. ROAD CLOSURES */}
           {layers.roadClosures &&
             roadClosures.map((closure) => {
               if (!isValidCoordinate(closure.coordinate)) return null;
@@ -241,5 +328,24 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: typography.fontWeight.heavy,
     fontSize: 12,
+  },
+  vehiclePin: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...shadows.md,
+  },
+  ambulancePin: {
+    backgroundColor: colors.severity.CRITICAL.main,
+  },
+  ndrfPin: {
+    backgroundColor: '#EA580C', // Tactical Orange
+  },
+  civilianPin: {
+    backgroundColor: colors.primary.main,
   },
 });

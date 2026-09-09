@@ -8,7 +8,10 @@ import { InteractiveMap } from '../../src/components/map/InteractiveMap';
 import { useDisasterStore } from '../../src/store/useDisasterStore';
 import { useUserStore } from '../../src/store/useUserStore';
 import { colors, typography, spacing, radius, shadows } from '../../src/theme';
-import { Navigation, ShieldAlert, Clock, MapPin, AlertTriangle, CheckCircle2, CornerUpRight, StopCircle } from 'lucide-react-native';
+import { Navigation, ShieldAlert, Clock, MapPin, AlertTriangle, CheckCircle2, CornerUpRight, StopCircle, Radio } from 'lucide-react-native';
+import { LocationService } from '../../src/services/location/locationService';
+import { TelemetryService } from '../../src/services/telemetry/telemetryService';
+import { Coordinate, TrackedUnit } from '../../src/types';
 
 export default function CivilianEvacuationScreen() {
   const { evacuationRoute, hazards, shelters, loadDisasterData } = useDisasterStore();
@@ -17,6 +20,29 @@ export default function CivilianEvacuationScreen() {
   const [isEvacuating, setIsEvacuating] = useState(false);
   const [etaRemainingMins, setEtaRemainingMins] = useState(evacuationRoute?.estimatedTimeMins || 14);
   const [distanceRemainingKm, setDistanceRemainingKm] = useState(evacuationRoute?.distanceKm || 4.2);
+  const [tracedPath, setTracedPath] = useState<Coordinate[]>([]);
+  const [approachingRescueUnits, setApproachingRescueUnits] = useState<TrackedUnit[]>([]);
+
+  const userCoord = profile.currentLocation || { latitude: 22.3072, longitude: 73.1812 };
+
+  // Calculate if any active hazard is in the user's nearby perimeter (< 25km or critical severity)
+  const nearbyHazards = (hazards || []).filter((h) => {
+    if (!h.center) return true;
+    const dist = LocationService.calculateDistanceKm(userCoord, h.center);
+    return dist <= 25;
+  });
+
+  const isHazardNearby = nearbyHazards.length > 0;
+  const effectiveRoute = isHazardNearby ? evacuationRoute : null;
+
+  // Option B: Automatically enter active evacuation if hazard is nearby
+  useEffect(() => {
+    if (isHazardNearby && evacuationRoute) {
+      setIsEvacuating(true);
+    } else {
+      setIsEvacuating(false);
+    }
+  }, [isHazardNearby, evacuationRoute]);
 
   useEffect(() => {
     if (!evacuationRoute) {
@@ -27,58 +53,162 @@ export default function CivilianEvacuationScreen() {
     }
   }, [evacuationRoute]);
 
+  // Subscribe to rescue fleet telemetry to show any inbound rescue team
   useEffect(() => {
-    let timer: any;
-    if (isEvacuating && etaRemainingMins > 0) {
-      timer = setInterval(() => {
-        setEtaRemainingMins((prev) => Math.max(1, prev - 1));
-        setDistanceRemainingKm((prev) => Math.max(0.2, parseFloat((prev - 0.3).toFixed(1))));
-      }, 5000);
-    }
-    return () => clearInterval(timer);
-  }, [isEvacuating, etaRemainingMins]);
+    const unsubscribe = TelemetryService.subscribe((unit) => {
+      if (unit.role === 'AMBULANCE' || unit.role === 'RESCUE_BOAT' || unit.role === 'NDRF_TRUCK') {
+        setApproachingRescueUnits((prev) => {
+          const index = prev.findIndex((u) => u.unitId === unit.unitId);
+          if (index >= 0) {
+            const updated = [...prev];
+            updated[index] = unit;
+            return updated;
+          }
+          return [...prev, unit];
+        });
+      }
+    });
 
-  if (!evacuationRoute) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header title="SAFE EVACUATION" />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Calculating safest route to emergency shelter...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+    return () => unsubscribe();
+  }, []);
+
+  // GPS Movement & Route Tracing Listener (Auto-triggers when isEvacuating is true)
+  useEffect(() => {
+    let watcherSub: any = null;
+    let fallbackTimer: any = null;
+
+    if (isEvacuating && isHazardNearby) {
+      // Seed initial origin point
+      const initialCoord = profile.currentLocation || evacuationRoute?.polyline?.[0];
+      if (initialCoord) {
+        setTracedPath([initialCoord]);
+      }
+
+      // 1. Live Device GPS Tracking
+      LocationService.watchLocation((coord) => {
+        setTracedPath((prev) => {
+          const last = prev[prev.length - 1];
+          if (
+            last &&
+            Math.abs(last.latitude - coord.latitude) < 0.00005 &&
+            Math.abs(last.longitude - coord.longitude) < 0.00005
+          ) {
+            return prev;
+          }
+          return [...prev, coord];
+        });
+
+        // Broadcast to Authority Command Center
+        TelemetryService.broadcastPosition({
+          unitId: profile.id,
+          name: profile.fullName || 'Civilian Device',
+          role: 'CIVILIAN',
+          coordinate: coord,
+          status: 'EVACUATING',
+        });
+      }).then((sub) => {
+        watcherSub = sub;
+      });
+
+      // 2. Demo Navigation Step Simulator (smoothly simulates movement along corridor)
+      if (evacuationRoute?.polyline && evacuationRoute.polyline.length > 1) {
+        let polyIndex = 0;
+        fallbackTimer = setInterval(() => {
+          if (polyIndex < (evacuationRoute.polyline?.length || 0) - 1) {
+            polyIndex++;
+            const nextPoint = evacuationRoute.polyline![polyIndex];
+            setTracedPath((prev) => [...prev, nextPoint]);
+            setEtaRemainingMins((prev) => Math.max(1, prev - 1));
+            setDistanceRemainingKm((prev) => Math.max(0.1, parseFloat((prev - 0.4).toFixed(1))));
+
+            // Broadcast simulated step to network
+            TelemetryService.broadcastPosition({
+              unitId: profile.id,
+              name: profile.fullName || 'Civilian Device',
+              role: 'CIVILIAN',
+              coordinate: nextPoint,
+              status: 'EVACUATING',
+            });
+          }
+        }, 4000);
+      }
+    } else {
+      setTracedPath([]);
+    }
+
+    return () => {
+      if (watcherSub) watcherSub.remove();
+      if (fallbackTimer) clearInterval(fallbackTimer);
+    };
+  }, [isEvacuating, isHazardNearby, evacuationRoute]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="SAFE EVACUATION ROUTE" />
+      <Header title={isHazardNearby ? "SAFE EVACUATION ROUTE" : "LOCATION SAFETY STATUS"} />
       <ConnectionStatus />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* High Risk Banner */}
-        <View style={styles.riskBanner}>
-          <ShieldAlert size={22} color={colors.severity.CRITICAL.main} />
-          <View style={styles.riskTextContainer}>
-            <Text style={styles.riskTitle}>YOU ARE IN A HIGH RISK FLOOD ZONE</Text>
-            <Text style={styles.riskSubtitle}>
-              Follow AI Dynamic Route away from Vishwamitri River surge overflow
-            </Text>
+        {/* Conditional Banner: High Risk Warning vs All Clear Safe Zone */}
+        {isHazardNearby ? (
+          <View style={styles.riskBanner}>
+            <ShieldAlert size={22} color={colors.severity.CRITICAL.main} />
+            <View style={styles.riskTextContainer}>
+              <Text style={styles.riskTitle}>YOU ARE IN A HIGH RISK FLOOD ZONE</Text>
+              <Text style={styles.riskSubtitle}>
+                AI Dynamic Evacuation Corridor automatically activated. Follow green path to shelter.
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.safeBanner}>
+            <CheckCircle2 size={22} color={colors.status.success} />
+            <View style={styles.riskTextContainer}>
+              <Text style={styles.safeTitle}>NORMAL CONDITIONS • NO ACTIVE HAZARD</Text>
+              <Text style={styles.safeSubtitle}>
+                No flood or landslide hazards in your nearby location. Route traffic corridors remain inactive.
+              </Text>
+            </View>
+          </View>
+        )}
 
-        {/* Live Evacuation Map Display Frame */}
+        {/* Live Evacuation Map Display Frame (Only draws route when hazard is nearby) */}
         <View style={styles.mapFrame}>
           <InteractiveMap
             hazards={hazards}
             shelters={shelters}
-            evacuationRoute={evacuationRoute}
+            evacuationRoute={effectiveRoute}
+            tracedPath={tracedPath}
+            trackedUnits={approachingRescueUnits}
             userLocation={profile.currentLocation}
             showLayersControl={false}
           />
         </View>
 
-        {/* EVACUATION MODE CONTROLLER */}
-        {!isEvacuating ? (
+        {/* EVACUATION MODE CONTROLLER (Only displayed when hazard is nearby) */}
+        {!isHazardNearby ? (
+          <View style={styles.safeZoneDetailsCard}>
+            <View style={styles.safeZoneRow}>
+              <CheckCircle2 size={24} color={colors.status.success} />
+              <View style={styles.flex1}>
+                <Text style={styles.safeZoneHeading}>ALL CORRIDORS CLEAR</Text>
+                <Text style={styles.safeZoneSub}>
+                  No flood inundation, road closures, or detour routes active in your perimeter.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.safeZonePillRow}>
+              <View style={styles.safePill}>
+                <Text style={styles.safePillText}>TRAFFIC: NORMAL</Text>
+              </View>
+              <View style={styles.safePill}>
+                <Text style={styles.safePillText}>EVACUATION: STANDBY</Text>
+              </View>
+              <View style={styles.safePill}>
+                <Text style={styles.safePillText}>RISK: LOW</Text>
+              </View>
+            </View>
+          </View>
+        ) : !isEvacuating ? (
           <View style={styles.routeOverviewCard}>
             <View style={styles.cardHeader}>
               <View style={styles.badgeIcon}>
@@ -86,36 +216,36 @@ export default function CivilianEvacuationScreen() {
               </View>
               <View style={styles.flex1}>
                 <Text style={styles.aiTag}>AI SAFEST EVACUATION CORRIDOR</Text>
-                <Text style={styles.destName}>Target: {evacuationRoute.shelterName}</Text>
+                <Text style={styles.destName}>Target: {evacuationRoute?.shelterName || 'Safe Relief Camp'}</Text>
               </View>
-              <SeverityBadge severity={evacuationRoute.riskIndex} size="sm" />
+              <SeverityBadge severity={evacuationRoute?.riskIndex || 'LOW'} size="sm" />
             </View>
 
             {/* Metrics Row */}
             <View style={styles.metricsGrid}>
               <View style={styles.metricItem}>
                 <Clock size={14} color={colors.text.secondary} />
-                <Text style={styles.metricValue}>{evacuationRoute.estimatedTimeMins} mins</Text>
+                <Text style={styles.metricValue}>{evacuationRoute?.estimatedTimeMins || 15} mins</Text>
                 <Text style={styles.metricLabel}>ESTIMATED ETA</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
                 <MapPin size={14} color={colors.text.secondary} />
-                <Text style={styles.metricValue}>{evacuationRoute.distanceKm} km</Text>
+                <Text style={styles.metricValue}>{evacuationRoute?.distanceKm || 3.8} km</Text>
                 <Text style={styles.metricLabel}>DISTANCE</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
                 <CheckCircle2 size={14} color={colors.status.success} />
                 <Text style={[styles.metricValue, { color: colors.status.success }]}>
-                  {evacuationRoute.safetyScore}%
+                  {evacuationRoute?.safetyScore || 95}%
                 </Text>
                 <Text style={styles.metricLabel}>SAFETY SCORE</Text>
               </View>
             </View>
 
             {/* Road Closures En-Route Warning */}
-            {evacuationRoute.roadClosuresEnRoute.length > 0 && (
+            {evacuationRoute?.roadClosuresEnRoute && evacuationRoute.roadClosuresEnRoute.length > 0 && (
               <View style={styles.closureBox}>
                 <AlertTriangle size={14} color={colors.severity.CRITICAL.main} />
                 <Text style={styles.closureText} numberOfLines={1}>
@@ -159,7 +289,7 @@ export default function CivilianEvacuationScreen() {
               <CornerUpRight size={20} color={colors.primary.main} />
               <View style={styles.flex1}>
                 <Text style={styles.stepTitle}>
-                  {evacuationRoute.turnByTurnInstructions[1]?.instruction || 'Head North towards Sama Flyover'}
+                  {evacuationRoute?.turnByTurnInstructions?.[1]?.instruction || 'Head North towards Sama Flyover'}
                 </Text>
                 <Text style={styles.stepDist}>In 800m • Follow Green Polyline Corridor</Text>
               </View>
@@ -209,6 +339,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  safeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.status.success,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   riskTextContainer: {
     flex: 1,
   },
@@ -218,10 +359,64 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.heavy,
     letterSpacing: 0.5,
   },
+  safeTitle: {
+    color: colors.status.success,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.heavy,
+    letterSpacing: 0.5,
+  },
   riskSubtitle: {
     color: colors.text.secondary,
     fontSize: 11,
     marginTop: 2,
+  },
+  safeSubtitle: {
+    color: colors.text.secondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  safeZoneDetailsCard: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border.strong,
+    marginBottom: spacing.xxl,
+    ...shadows.md,
+  },
+  safeZoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  safeZoneHeading: {
+    color: colors.status.success,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  safeZoneSub: {
+    color: colors.text.secondary,
+    fontSize: typography.fontSize.xs,
+    marginTop: 2,
+  },
+  safeZonePillRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  safePill: {
+    backgroundColor: colors.background.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  safePillText: {
+    color: colors.text.secondary,
+    fontSize: 10,
+    fontWeight: typography.fontWeight.bold,
   },
   mapFrame: {
     height: 240,

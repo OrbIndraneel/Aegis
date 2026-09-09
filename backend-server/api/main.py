@@ -11,7 +11,8 @@ from api.routes import (
     alert_routes,
     landslide_routes,
     authority_routes,
-    medical_routes
+    medical_routes,
+    telemetry_routes
 )
 from database.connection import get_engine
 from security.middleware import SecurityHeadersMiddleware, RequestIDMiddleware
@@ -100,6 +101,7 @@ app.include_router(alert_routes.router, prefix="/api", tags=["Broadcast Alerts"]
 # Additive Security & Governance Routes
 app.include_router(authority_routes.router, prefix="/api/authority", tags=["Authority Governance & RBAC"])
 app.include_router(medical_routes.router, prefix="/api", tags=["Emergency Medical & Consent (ABDM)"])
+app.include_router(telemetry_routes.router, tags=["Live Telemetry & GPS Tracking"])
 
 
 @app.get("/")
