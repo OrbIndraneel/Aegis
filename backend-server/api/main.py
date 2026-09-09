@@ -83,7 +83,7 @@ async def sanitized_unhandled_exception_handler(request: Request, exc: Exception
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "error": "A secure internal error occurred. Disaster life-safety fallbacks remain operational.",
+            "error": f"Internal Error: {str(exc)}",
             "status_code": 500,
             "request_id": req_id
         },
