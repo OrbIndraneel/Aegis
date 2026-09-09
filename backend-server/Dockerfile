@@ -27,5 +27,5 @@ COPY . .
 # Expose default HTTP port
 EXPOSE 8000
 
-# Start Gunicorn server with Uvicorn workers for production performance
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "api.main:app", "--bind", "0.0.0.0:8000"]
+# Start Gunicorn server with Uvicorn workers bound to dynamic cloud PORT
+CMD ["sh", "-c", "gunicorn -w 2 -k uvicorn.workers.UvicornWorker api.main:app --bind 0.0.0.0:${PORT:-8000}"]
