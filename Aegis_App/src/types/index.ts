@@ -65,6 +65,16 @@ export interface Hazard {
   roadClosuresCount: number;
   recommendedAction: string;
   lastUpdated: string;
+  slopeAngleDegrees?: number;
+  soilMoisturePercent?: number;
+  rainfall24hMm?: number;
+  rainfall72hMm?: number;
+  historicalSusceptibility?: 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
+  modelConfidence?: number; // 0 - 100%
+  dataFreshnessMinutes?: number;
+  geologicalFormation?: string;
+  vulnerableRoadSegments?: string[];
+  vulnerableVillages?: string[];
 }
 
 export interface ShelterCapacity {
@@ -99,52 +109,53 @@ export interface Shelter {
 }
 
 export interface RoadClosureMarker {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
+  locationName?: string;
   coordinate: Coordinate;
-  reason: string;
-  severity: HazardSeverity;
+  reason?: string;
+  severity?: HazardSeverity;
+  isPassable?: boolean;
 }
 
 export interface RouteSegment {
   id: string;
   instruction: string;
   distanceMeters: number;
-  startCoordinate: Coordinate;
-  endCoordinate: Coordinate;
-  riskLevel: HazardSeverity;
+  startCoordinate?: Coordinate;
+  endCoordinate?: Coordinate;
+  riskLevel?: HazardSeverity;
   hazardWarning?: string;
-  roadClosed: boolean;
+  roadClosed?: boolean;
 }
 
 export interface EvacuationRoute {
   id: string;
-  name: string;
-  origin: Coordinate;
-  destinationShelterId: string;
-  shelterName: string;
+  name?: string;
+  shelterId?: string;
+  destinationShelterId?: string;
+  shelterName?: string;
+  origin?: Coordinate;
+  totalDistanceMeters?: number;
+  estimatedDurationMins?: number;
+  distanceKm: number;
+  estimatedTimeMins: number;
+  safetyScore?: number;
+  riskIndex: HazardSeverity;
+  hazardExposureCount?: number;
+  roadClosuresCount?: number;
   polyline: Coordinate[];
   alternativePolyline?: Coordinate[];
   dangerousSegmentsPolyline?: Coordinate[];
-  distanceKm: number;
-  estimatedTimeMins: number;
-  safetyScore: number; // 0 - 100%
-  riskIndex: HazardSeverity;
-  hazardExposureCount: number;
-  roadClosuresCount: number;
-  segments: RouteSegment[];
-  avoidedHazards: string[];
-  roadClosuresEnRoute: {
-    locationName: string;
-    coordinate: Coordinate;
-    reason: string;
-  }[];
-  turnByTurnInstructions: {
-    id: string;
-    instruction: string;
-    distanceMeters: number;
-    hazardWarning?: string;
-  }[];
+  segments?: RouteSegment[];
+  avoidedHazards?: string[];
+  turnByTurnInstructions: RouteSegment[];
+  roadClosuresEnRoute: RoadClosureMarker[];
+  safePassageProbability?: number;
+  safeRouteName?: string;
+  safeZoneDistanceKm?: number;
+  safeZoneName?: string;
+  isOfflineCached?: boolean;
 }
 
 export interface EmergencyAlert {
@@ -160,6 +171,8 @@ export interface EmergencyAlert {
   affectedPopulationEstimate?: number;
   acknowledgmentRequired?: boolean;
 }
+
+export type AlertMessage = EmergencyAlert;
 
 export type IncidentStatus = 'Monitoring' | 'Warning' | 'Critical' | 'Evacuation' | 'Resolved';
 
@@ -247,7 +260,7 @@ export interface TrackedUnit {
 }
 
 export interface TelemetryPacket {
-  type: 'LOCATION_UPDATE' | 'FLEET_SNAPSHOT' | 'PING' | 'PONG';
+  type: 'LOCATION_UPDATE' | 'FLEET_SNAPSHOT' | 'PING' | 'PONG' | 'BEACON_BROADCAST' | 'BEACON_SNAPSHOT' | 'BEACON_UPDATE';
   unitId?: string;
   name?: string;
   role?: TrackedRole;
@@ -258,4 +271,101 @@ export interface TelemetryPacket {
   targetCivilianId?: string;
   timestamp?: number;
   units?: TrackedUnit[];
+  beacon?: RescueBeacon;
+  beacons?: RescueBeacon[];
+}
+
+export type BeaconTriageLevel = 'CRITICAL_RED' | 'URGENT_YELLOW' | 'STABLE_GREEN';
+export type BeaconProximityZone = 'IMMEDIATE' | 'NEAR' | 'FAR';
+
+export interface RescueBeacon {
+  beaconId: string;
+  userId: string;
+  fullName: string;
+  bloodGroup?: string;
+  triagePriority: BeaconTriageLevel;
+  sosReason: string;
+  medicalNotes?: string;
+  coordinate: Coordinate;
+  batteryLevel: number;
+  signalStrengthDbm: number; // RSSI in dBm (-30 to -95)
+  estimatedDistanceMeters: number;
+  proximityZone: BeaconProximityZone;
+  isActive: boolean;
+  isTorchActive: boolean;
+  isSirenActive: boolean;
+  lastBroadcastTimestamp: number;
+}
+
+export interface TriVectorBeaconState {
+  isActive: boolean;
+  isTorchActive: boolean;
+  isSirenActive: boolean;
+  isVoiceActive: boolean;
+  isMuted: boolean;
+  operatingMode: 'TURBO_CRITICAL' | 'ENDURANCE_SAVER';
+  beaconId: string;
+  triagePriority: BeaconTriageLevel;
+  broadcastIntervalMs: number;
+  activeSeconds: number;
+}
+
+export type Severity = HazardSeverity;
+
+export type FieldReportType =
+  | 'LANDSLIDE'
+  | 'MUDSLIDE'
+  | 'SLOPE_MOVEMENT'
+  | 'GROUND_CRACKS'
+  | 'ROAD_BLOCK'
+  | 'BLOCKED_ROAD'
+  | 'DEBRIS_FLOW'
+  | 'OTHER';
+
+export type FieldReportStatus = 'QUEUED_OFFLINE' | 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED_BY_SDRF' | 'REJECTED';
+
+export interface CivilianFieldReport {
+  id: string;
+  reportType: FieldReportType;
+  type?: FieldReportType;
+  title: string;
+  description: string;
+  coordinate: Coordinate;
+  coordinates?: Coordinate;
+  locationName: string;
+  locality?: string;
+  severity: HazardSeverity;
+  photoUri?: string;
+  photoUrl?: string;
+  timestamp: number;
+  createdAt?: string;
+  formattedTime: string;
+  status: FieldReportStatus;
+  reportedBy: string;
+  reporterName?: string;
+  contactPhone?: string;
+  reporterPhone?: string;
+}
+
+export interface VulnerableVillage {
+  id: string;
+  name: string;
+  district: string;
+  population: number;
+  coordinate: Coordinate;
+  riskLevel: HazardSeverity;
+  slopeAngle: number;
+  primaryRoadAccess: string;
+  isIsolated: boolean;
+  evacuationShelterId: string;
+}
+
+export interface VulnerableRoad {
+  id: string;
+  code: string;
+  corridorName: string;
+  status: 'OPEN' | 'ONE_WAY_RESTRICTED' | 'HIGH_RISK_WATCH' | 'BLOCKED_IMPASSABLE';
+  criticalPasses: string[];
+  blockadeLengthKm?: number;
+  alternativeBypass: string;
 }

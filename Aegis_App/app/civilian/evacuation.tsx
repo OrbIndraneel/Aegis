@@ -8,14 +8,15 @@ import { InteractiveMap } from '../../src/components/map/InteractiveMap';
 import { useDisasterStore } from '../../src/store/useDisasterStore';
 import { useUserStore } from '../../src/store/useUserStore';
 import { colors, typography, spacing, radius, shadows } from '../../src/theme';
-import { Navigation, ShieldAlert, Clock, MapPin, AlertTriangle, CheckCircle2, CornerUpRight, StopCircle, Radio } from 'lucide-react-native';
+import { Navigation, ShieldAlert, Clock, MapPin, AlertTriangle, CheckCircle2, CornerUpRight, StopCircle, Radio, Volume2, VolumeX } from 'lucide-react-native';
 import { LocationService } from '../../src/services/location/locationService';
 import { TelemetryService } from '../../src/services/telemetry/telemetryService';
+import { VoiceGuidanceService } from '../../src/services/audio/voiceGuidanceService';
 import { Coordinate, TrackedUnit } from '../../src/types';
 
 export default function CivilianEvacuationScreen() {
   const { evacuationRoute, hazards, shelters, loadDisasterData } = useDisasterStore();
-  const { profile } = useUserStore();
+  const { profile, isVoiceGuidanceEnabled, toggleVoiceGuidance } = useUserStore();
 
   const [isEvacuating, setIsEvacuating] = useState(false);
   const [etaRemainingMins, setEtaRemainingMins] = useState(evacuationRoute?.estimatedTimeMins || 14);
@@ -78,6 +79,11 @@ export default function CivilianEvacuationScreen() {
     let fallbackTimer: any = null;
 
     if (isEvacuating && isHazardNearby) {
+      if (isVoiceGuidanceEnabled && evacuationRoute) {
+        const initialStep = evacuationRoute.turnByTurnInstructions?.[1]?.instruction || 'Proceed along designated safe corridor';
+        VoiceGuidanceService.speakInstruction(`Evacuation route active. ${initialStep}`);
+      }
+
       // Seed initial origin point
       const initialCoord = profile.currentLocation || evacuationRoute?.polyline?.[0];
       if (initialCoord) {
@@ -139,6 +145,7 @@ export default function CivilianEvacuationScreen() {
     return () => {
       if (watcherSub) watcherSub.remove();
       if (fallbackTimer) clearInterval(fallbackTimer);
+      VoiceGuidanceService.stopSpeaking();
     };
   }, [isEvacuating, isHazardNearby, evacuationRoute]);
 
@@ -183,6 +190,28 @@ export default function CivilianEvacuationScreen() {
             showLayersControl={false}
           />
         </View>
+
+        {/* Emergency Voice Guidance Toggle Bar */}
+        {isHazardNearby && (
+          <View style={styles.voiceToggleBar}>
+            <View style={styles.voiceTextRow}>
+              {isVoiceGuidanceEnabled ? <Volume2 size={16} color="#10B981" /> : <VolumeX size={16} color="#94A3B8" />}
+              <View>
+                <Text style={styles.voiceTitle}>SPOKEN VOICE GUIDANCE</Text>
+                <Text style={styles.voiceSub}>Spoken turn-by-turn evacuation instructions</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.voiceSwitch, isVoiceGuidanceEnabled && styles.voiceSwitchActive]}
+              onPress={toggleVoiceGuidance}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.voiceSwitchText, isVoiceGuidanceEnabled && styles.voiceSwitchTextActive]}>
+                {isVoiceGuidanceEnabled ? 'ON' : 'OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* EVACUATION MODE CONTROLLER (Only displayed when hazard is nearby) */}
         {!isHazardNearby ? (
@@ -612,5 +641,49 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.bold,
+  },
+  voiceToggleBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0F172A',
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  voiceTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  voiceTitle: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  voiceSub: {
+    color: '#94A3B8',
+    fontSize: 9.5,
+    marginTop: 1,
+  },
+  voiceSwitch: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  voiceSwitchActive: {
+    backgroundColor: '#059669',
+  },
+  voiceSwitchText: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  voiceSwitchTextActive: {
+    color: '#FFFFFF',
   },
 });

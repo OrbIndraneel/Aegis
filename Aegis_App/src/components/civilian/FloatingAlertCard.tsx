@@ -7,6 +7,7 @@ interface Props {
   title?: string;
   subtitle?: string;
   actionText?: string;
+  severity?: string;
 }
 
 export const FloatingAlertCard: React.FC<Props> = ({

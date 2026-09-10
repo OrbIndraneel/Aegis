@@ -76,7 +76,21 @@ declare module 'lucide-react-native' {
   export const WifiOff: LucideIcon;
   export const X: LucideIcon;
   export const XCircle: LucideIcon;
+  export const BatteryCharging: LucideIcon;
+  export const Flashlight: LucideIcon;
+  export const Heart: LucideIcon;
+  export const Volume2: LucideIcon;
+  export const VolumeX: LucideIcon;
   export const Zap: LucideIcon;
+  export const BellRing: LucideIcon;
+  export const Camera: LucideIcon;
+  export const Compass: LucideIcon;
+  export const HelpCircle: LucideIcon;
+  export const Image: LucideIcon;
+  export const OctagonAlert: LucideIcon;
+  export const PlusCircle: LucideIcon;
+  export const Sparkles: LucideIcon;
+  export const ExternalLink: LucideIcon;
 
   export default LucideIcon;
 }

@@ -1,0 +1,419 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AlertOctagon, PhoneCall, X, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { Header } from '../../src/components/common/Header';
+import { ConnectionStatus } from '../../src/components/common/ConnectionStatus';
+import { colors, typography, spacing, radius, shadows } from '../../src/theme';
+import { useUserStore } from '../../src/store/useUserStore';
+import { MockSosService, SosReason, SosDispatchRecord } from '../../src/services/mock/mockSosService';
+import { useTranslation } from '../../src/i18n';
+import { RescueBeaconBanner } from '../../src/components/civilian/RescueBeaconBanner';
+
+export default function CivilianSosScreen() {
+  const router = useRouter();
+  const { profile, isRescueBeaconActive, activeBeaconRecord, setRescueBeaconState } = useUserStore();
+  const { t } = useTranslation();
+
+  const [selectedReason, setSelectedReason] = useState<SosReason>('Landslide Blockade');
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [activeRecord, setActiveRecord] = useState<SosDispatchRecord | null>(activeBeaconRecord);
+  const [isTransmitting, setIsTransmitting] = useState(false);
+
+  const [prevBeaconRecord, setPrevBeaconRecord] = useState(activeBeaconRecord);
+  if (activeBeaconRecord !== prevBeaconRecord) {
+    setPrevBeaconRecord(activeBeaconRecord);
+    if (activeBeaconRecord) {
+      setActiveRecord(activeBeaconRecord);
+      setIsConfirmed(true);
+    }
+  }
+
+  const handleConfirmSos = async () => {
+    setIsTransmitting(true);
+    const record = await MockSosService.triggerSos(
+      selectedReason,
+      profile.currentLocation || { latitude: 27.234, longitude: 88.512 },
+      profile.fullName,
+      profile.phoneNumber,
+      profile.bloodGroup,
+      profile.medicalConditions
+    );
+    setIsTransmitting(false);
+    setActiveRecord(record);
+    setIsConfirmed(true);
+    setRescueBeaconState(true, record);
+  };
+
+  const handleCancelSos = async () => {
+    const cancelAction = async () => {
+      await MockSosService.cancelSos();
+      setIsConfirmed(false);
+      setActiveRecord(null);
+      setRescueBeaconState(false, null);
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm('Are you sure you want to cancel the active rescue request sent to NDRF Command?')) {
+        await cancelAction();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Cancel SOS Emergency Broadcast?',
+      'Are you sure you want to cancel the active rescue request sent to NDRF Command?',
+      [
+        { text: 'Keep Active SOS', style: 'cancel' },
+        {
+          text: 'Confirm Cancellation',
+          style: 'destructive',
+          onPress: cancelAction,
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header title={t('emergencySosDispatch') || 'EMERGENCY BEACON'} />
+      <ConnectionStatus />
+
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {!isConfirmed ? (
+          /* PRE-ACTIVATION: SELECT REASON & CONFIRM */
+          <View>
+            <View style={styles.headerBox}>
+              <View style={styles.sosIconBox}>
+                <AlertOctagon size={36} color="#DC2626" />
+              </View>
+              <Text style={styles.headerTitle}>{t('distressBeaconTitle')}</Text>
+              <Text style={styles.headerSubtitle}>
+                {t('distressBeaconSub')}
+              </Text>
+            </View>
+
+            {/* Current GPS Coordinates Card */}
+            <View style={styles.gpsCard}>
+              <MapPin size={16} color="#2563EB" />
+              <View style={styles.flex1}>
+                <Text style={styles.gpsTitle}>{t('transmittingGps')}</Text>
+                <Text style={styles.gpsCoords}>
+                  {profile.currentLocation?.latitude.toFixed(4)}° N, {profile.currentLocation?.longitude.toFixed(4)}° E
+                </Text>
+              </View>
+            </View>
+
+            {/* Emergency Reason Selector */}
+            <Text style={styles.sectionTitle}>{t('emergencyReason')}</Text>
+            <View style={styles.reasonsList}>
+              {([
+                'Submerged House',
+                'Medical Emergency',
+                'Trapped in Vehicle',
+                'Landslide Blockade',
+                'General Rescue',
+              ] as SosReason[]).map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reasonChip,
+                    selectedReason === reason && styles.reasonActive,
+                  ]}
+                  onPress={() => setSelectedReason(reason)}
+                >
+                  <AlertTriangle
+                    size={14}
+                    color={selectedReason === reason ? '#FFFFFF' : '#71717A'}
+                  />
+                  <Text
+                    style={[
+                      styles.reasonText,
+                      selectedReason === reason && styles.reasonTextActive,
+                    ]}
+                  >
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* CONFIRM SOS BUTTON */}
+            <TouchableOpacity
+              style={styles.confirmSosBtn}
+              onPress={handleConfirmSos}
+              disabled={isTransmitting}
+              activeOpacity={0.85}
+            >
+              <AlertOctagon size={20} color="#FFF" />
+              <Text style={styles.confirmSosText}>
+                {isTransmitting ? t('transmittingBeacon') : t('confirmDispatchSos')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          /* ACTIVE SOS DISPATCHED STATE WITH FULL RESCUE BEACON DISPLAY */
+          <View>
+            {activeRecord && <RescueBeaconBanner record={activeRecord} />}
+
+            <View style={styles.profileCard}>
+              <Text style={styles.cardHeaderTitle}>Transmitted Evacuee Profile</Text>
+              <Text style={styles.profileText}>Evacuee: {profile.fullName} ({profile.phoneNumber})</Text>
+              <Text style={styles.profileText}>Reason: {activeRecord?.reason}</Text>
+              <Text style={styles.profileText}>Blood Group: {profile.bloodGroup}</Text>
+              <Text style={styles.profileText}>Medical Notes: {profile.medicalConditions}</Text>
+            </View>
+
+            {/* CANCEL SOS BUTTON */}
+            <TouchableOpacity
+              style={styles.cancelSosBtn}
+              onPress={handleCancelSos}
+              activeOpacity={0.8}
+            >
+              <X size={16} color="#DC2626" />
+              <Text style={styles.cancelSosText}>{t('cancelActiveSos')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 1-Tap Emergency Hotlines */}
+        <Text style={styles.sectionTitle}>{t('emergencyHotlines')}</Text>
+        <View style={styles.hotlinesGrid}>
+          {[
+            { name: 'NDRF Disaster Helpline', number: '1078' },
+            { name: 'State Control Room', number: '1070' },
+            { name: 'Ambulance Response', number: '108' },
+            { name: 'Police Helpline', number: '100' },
+          ].map((item, idx) => (
+            <TouchableOpacity key={idx} style={styles.hotlineChip} activeOpacity={0.8}>
+              <PhoneCall size={14} color="#DC2626" />
+              <View style={styles.flex1}>
+                <Text style={styles.hotlineName}>{item.name}</Text>
+              </View>
+              <Text style={styles.hotlineNumber}>{item.number}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  scrollContainer: {
+    paddingBottom: 110,
+  },
+  headerBox: {
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  sosIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(185, 28, 28, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  headerTitle: {
+    color: '#172033',
+    fontSize: 20,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  headerSubtitle: {
+    color: '#4B5E76',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  gpsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    ...shadows.sm,
+  },
+  flex1: {
+    flex: 1,
+  },
+  gpsTitle: {
+    color: '#00B8D4',
+    fontSize: 11,
+    fontWeight: typography.fontWeight.bold,
+  },
+  gpsCoords: {
+    color: '#172033',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.heavy,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    color: '#172033',
+    fontSize: 16,
+    fontWeight: typography.fontWeight.heavy,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  reasonsList: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  reasonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  reasonActive: {
+    backgroundColor: '#B91C1C',
+    borderColor: '#B91C1C',
+  },
+  reasonText: {
+    color: '#172033',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.bold,
+  },
+  reasonTextActive: {
+    color: '#FFFFFF',
+  },
+  confirmSosBtn: {
+    backgroundColor: '#EF4444',
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    ...shadows.glowRed,
+  },
+  confirmSosText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  activeBanner: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    borderRadius: radius.xxl,
+    borderWidth: 1.5,
+    borderColor: '#22C55E',
+    marginVertical: spacing.md,
+    ...shadows.sm,
+  },
+  pulseOuter: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  pulseInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTitle: {
+    color: '#22C55E',
+    fontSize: 16,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  trackingId: {
+    color: '#172033',
+    fontSize: 12,
+    fontWeight: typography.fontWeight.bold,
+    marginTop: 4,
+  },
+  assignedUnit: {
+    color: '#4B5E76',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    ...shadows.sm,
+  },
+  cardHeaderTitle: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: 4,
+  },
+  profileText: {
+    color: '#172033',
+    fontSize: 12,
+    marginVertical: 2,
+  },
+  cancelSosBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  cancelSosText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  hotlinesGrid: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  hotlineChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  hotlineName: {
+    color: '#172033',
+    fontSize: 12,
+    fontWeight: typography.fontWeight.bold,
+  },
+  hotlineNumber: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.heavy,
+  },
+});

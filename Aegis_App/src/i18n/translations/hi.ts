@@ -14,6 +14,7 @@ export const hi: typeof en = {
   tabMap: 'नक्शा',
   tabAlerts: 'अलर्ट',
   tabRoute: 'मार्ग',
+  tabReport: 'रिपोर्ट',
   tabSos: 'एसओएस',
   tabProfile: 'प्रोफ़ाइल',
 

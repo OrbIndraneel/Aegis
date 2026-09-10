@@ -5,16 +5,18 @@ import { Header } from '../../src/components/common/Header';
 import { ConnectionStatus } from '../../src/components/common/ConnectionStatus';
 import { ShelterCard } from '../../src/components/civilian/ShelterCard';
 import { useDisasterStore } from '../../src/store/useDisasterStore';
+import { useUserStore } from '../../src/store/useUserStore';
 import { colors, typography, spacing, radius } from '../../src/theme';
 import { useRouter } from 'expo-router';
-import { Search, Filter, Home } from 'lucide-react-native';
+import { Search, Filter, Home, Sparkles } from 'lucide-react-native';
 import { Shelter } from '../../src/types';
-
 import { LocationService } from '../../src/services/location/locationService';
+import { getLoadBalancedShelterRecommendations } from '../../src/utils/shelterLoadBalancer';
 
 export default function SheltersScreen() {
   const router = useRouter();
   const { shelters, calculateSafeRoute, loadDisasterData } = useDisasterStore();
+  const { profile } = useUserStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'OPEN' | 'MEDICAL' | 'FOOD'>('ALL');
 
@@ -22,7 +24,9 @@ export default function SheltersScreen() {
     loadDisasterData();
   }, []);
 
-  const filteredShelters = shelters.filter((shelter) => {
+  const rankedShelters = getLoadBalancedShelterRecommendations(shelters, profile?.currentLocation);
+
+  const filteredShelters = rankedShelters.filter((shelter) => {
     const matchesSearch =
       shelter.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shelter.address.toLowerCase().includes(searchQuery.toLowerCase());
@@ -45,6 +49,14 @@ export default function SheltersScreen() {
       <ConnectionStatus />
 
       <View style={styles.content}>
+        {/* Load Balancing Rationale Callout Banner */}
+        <View style={styles.lbHeaderBanner}>
+          <Sparkles size={14} color={colors.status.success} />
+          <Text style={styles.lbHeaderText}>
+            SHELTER LOAD BALANCER ACTIVE: Recommended by distance + capacity availability (prevents overcrowding).
+          </Text>
+        </View>
+
         {/* Search Input Bar */}
         <View style={styles.searchBar}>
           <Search size={16} color={colors.text.muted} />
@@ -93,8 +105,13 @@ export default function SheltersScreen() {
         <FlatList
           data={filteredShelters}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }: { item: Shelter }) => (
-            <ShelterCard shelter={item} onNavigate={handleRouteToShelter} />
+          renderItem={({ item }: { item: any }) => (
+            <ShelterCard
+              shelter={item}
+              onNavigate={handleRouteToShelter}
+              recommendationReason={item.recommendationReason}
+              isRecommended={item.isLoadBalancedChoice}
+            />
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -113,6 +130,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+  },
+  lbHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  lbHeaderText: {
+    color: colors.status.success,
+    fontSize: 10,
+    fontWeight: typography.fontWeight.bold,
+    flex: 1,
   },
   searchBar: {
     flexDirection: 'row',
@@ -161,6 +196,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
   },
   listContent: {
-    paddingBottom: spacing.xxl,
+    paddingBottom: 110,
   },
 });

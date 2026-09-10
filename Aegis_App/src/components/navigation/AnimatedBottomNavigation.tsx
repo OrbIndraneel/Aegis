@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, LayoutChangeEvent } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { Map, Bell, Footprints, AlertOctagon, User } from 'lucide-react-native';
+import { Map, Bell, Footprints, AlertOctagon, FileText } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -15,7 +15,7 @@ import { useTranslation } from '../../i18n';
 
 export interface TabItem {
   id: string;
-  labelKey: 'tabMap' | 'tabAlerts' | 'tabRoute' | 'tabSos' | 'tabProfile';
+  labelKey: 'tabMap' | 'tabAlerts' | 'tabRoute' | 'tabReport' | 'tabSos' | 'tabProfile';
   icon: React.ComponentType<{ size: number; color: string }>;
   route: string;
 }
@@ -24,8 +24,8 @@ const TABS: TabItem[] = [
   { id: 'map', labelKey: 'tabMap', icon: Map, route: '/civilian' },
   { id: 'alerts', labelKey: 'tabAlerts', icon: Bell, route: '/civilian/alerts' },
   { id: 'route', labelKey: 'tabRoute', icon: Footprints, route: '/civilian/evacuation' },
+  { id: 'report', labelKey: 'tabReport', icon: FileText, route: '/civilian/report' },
   { id: 'sos', labelKey: 'tabSos', icon: AlertOctagon, route: '/civilian/sos' },
-  { id: 'profile', labelKey: 'tabProfile', icon: User, route: '/civilian/profile' },
 ];
 
 export const AnimatedBottomNavigation: React.FC = () => {
@@ -38,8 +38,8 @@ export const AnimatedBottomNavigation: React.FC = () => {
     if (pathname === '/civilian' || pathname === '/civilian/' || pathname === '/civilian/index') return 0;
     if (pathname === '/civilian/alerts') return 1;
     if (pathname === '/civilian/evacuation' || pathname === '/civilian/route') return 2;
-    if (pathname === '/civilian/sos' || pathname === '/modal/sos') return 3;
-    if (pathname === '/civilian/profile') return 4;
+    if (pathname === '/civilian/report') return 3;
+    if (pathname === '/civilian/sos' || pathname === '/modal/sos') return 4;
     return 0;
   }, [pathname]);
 

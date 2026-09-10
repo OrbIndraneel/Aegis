@@ -9,9 +9,10 @@ import { MapLegend } from '../../src/components/map/MapLegend';
 import { useDisasterStore } from '../../src/store/useDisasterStore';
 import { colors, spacing, radius, typography, shadows } from '../../src/theme';
 import { VADODARA_ROAD_CLOSURES, MOCK_INCIDENTS } from '../../src/services/mock/mockData';
-import { ShieldAlert, Users, Radio, Home, Navigation, Play, StopCircle, HeartPulse } from 'lucide-react-native';
+import { ShieldAlert, Users, Radio, Home, Navigation, Play, StopCircle, HeartPulse, Target } from 'lucide-react-native';
 import { TelemetryService } from '../../src/services/telemetry/telemetryService';
 import { TrackedUnit, Coordinate } from '../../src/types';
+import { AuthorityBeaconRadarModal } from '../../src/components/beacon/AuthorityBeaconRadarModal';
 
 // Default initial rescue fleet positions (Vadodara)
 const INITIAL_FLEET: TrackedUnit[] = [
@@ -60,6 +61,7 @@ export default function AuthorityMapScreen() {
   const [selectedUnit, setSelectedUnit] = useState<TrackedUnit | null>(null);
   const [isSimulatingDispatch, setIsSimulatingDispatch] = useState(false);
   const [activeRescueCorridor, setActiveRescueCorridor] = useState<Coordinate[] | undefined>(undefined);
+  const [isRadarModalVisible, setIsRadarModalVisible] = useState(false);
 
   const [layers, setLayers] = useState({
     hazards: true,
@@ -227,14 +229,38 @@ export default function AuthorityMapScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Selected Unit Details Modal Card */}
+        {/* Tactical Rescue Beacon Radar Button */}
+        <TouchableOpacity
+          style={styles.radarButton}
+          onPress={() => setIsRadarModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Target size={16} color="#10B981" />
+          <Text style={styles.radarButtonText}>BEACON RADAR</Text>
+          <View style={styles.radarBadge}>
+            <Text style={styles.radarBadgeText}>3</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Selected Unit Details Overlay */}
         {selectedUnit && (
           <View style={styles.unitDetailCard}>
             <View style={styles.unitCardHeader}>
-              <HeartPulse size={18} color={colors.severity.CRITICAL.main} />
-              <Text style={styles.unitCardTitle}>{selectedUnit.name}</Text>
-              <TouchableOpacity onPress={() => setSelectedUnit(null)}>
-                <Text style={styles.closeBtn}>✕</Text>
+              <View style={styles.unitIconCircle}>
+                {selectedUnit.role === 'AMBULANCE' ? (
+                  <HeartPulse size={18} color="#FFF" />
+                ) : selectedUnit.role === 'RESCUE_BOAT' ? (
+                  <Navigation size={18} color="#FFF" />
+                ) : (
+                  <Radio size={18} color="#FFF" />
+                )}
+              </View>
+              <View style={styles.unitNameContainer}>
+                <Text style={styles.unitCardName}>{selectedUnit.name}</Text>
+                <Text style={styles.unitCardId}>UNIT ID: {selectedUnit.unitId}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedUnit(null)} style={styles.closeCardBtn}>
+                <Text style={styles.closeCardText}>✕</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.unitCardRow}>
@@ -245,6 +271,21 @@ export default function AuthorityMapScreen() {
           </View>
         )}
       </View>
+
+      {/* 360 Degree Tactical Beacon Radar Modal */}
+      <AuthorityBeaconRadarModal
+        visible={isRadarModalVisible}
+        onClose={() => setIsRadarModalVisible(false)}
+        onSelectBeaconForDispatch={(beacon) => {
+          setSelectedUnit({
+            unitId: beacon.beaconId,
+            name: `Distress: ${beacon.fullName}`,
+            role: 'CIVILIAN',
+            coordinate: beacon.coordinate,
+            status: 'EVACUATING',
+          });
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -348,6 +389,68 @@ const styles = StyleSheet.create({
     color: colors.status.success,
     fontSize: 11,
     fontWeight: typography.fontWeight.bold,
+  },
+  unitIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitNameContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  unitCardName: {
+    color: '#18181B',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  unitCardId: {
+    color: '#71717A',
+    fontSize: 10,
+    fontWeight: typography.fontWeight.bold,
+  },
+  closeCardBtn: {
+    padding: 4,
+  },
+  closeCardText: {
+    color: '#71717A',
+    fontSize: 16,
+  },
+  radarButton: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.md,
+    backgroundColor: '#0F172A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    zIndex: 20,
+    ...shadows.lg,
+  },
+  radarButtonText: {
+    color: '#10B981',
+    fontWeight: typography.fontWeight.heavy,
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  radarBadge: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  radarBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: typography.fontWeight.heavy,
   },
 });
 

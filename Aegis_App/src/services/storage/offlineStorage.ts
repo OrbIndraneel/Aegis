@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Hazard, Shelter, EvacuationRoute, EmergencyAlert } from '../../types';
+import { Hazard, Shelter, EvacuationRoute, EmergencyAlert, CivilianFieldReport } from '../../types';
 
 const STORAGE_KEYS = {
   HAZARDS: '@suraksha_hazards',
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   ROUTE: '@suraksha_route',
   NETWORK_STATUS: '@suraksha_network',
   LAST_SYNC: '@suraksha_last_sync',
+  FIELD_REPORTS_QUEUE: '@aegis_field_reports_queue',
 };
 
 export class OfflineStorage {
@@ -103,6 +104,31 @@ export class OfflineStorage {
   static async saveLastSyncTime(timestamp: number): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, timestamp.toString());
+    } catch (e) {}
+  }
+
+  static async queueFieldReport(report: CivilianFieldReport): Promise<void> {
+    try {
+      const current = await this.getQueuedFieldReports();
+      current.push(report);
+      await AsyncStorage.setItem(STORAGE_KEYS.FIELD_REPORTS_QUEUE, JSON.stringify(current));
+    } catch (e) {
+      console.warn('Failed to queue field report locally:', e);
+    }
+  }
+
+  static async getQueuedFieldReports(): Promise<CivilianFieldReport[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.FIELD_REPORTS_QUEUE);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static async clearQueuedFieldReports(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.FIELD_REPORTS_QUEUE);
     } catch (e) {}
   }
 }

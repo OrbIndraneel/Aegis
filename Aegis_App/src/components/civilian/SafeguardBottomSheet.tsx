@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n';
 interface Props {
   onSosPress?: () => void;
   onNavigationPress?: () => void;
+  evacuationRoute?: any;
 }
 
 export const SafeguardBottomSheet: React.FC<Props> = ({

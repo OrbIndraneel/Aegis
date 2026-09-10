@@ -4,6 +4,8 @@ import { AlertTriangle, Clock, MapPin, Building2, ChevronRight } from 'lucide-re
 import { colors, typography, spacing, radius, shadows } from '../../theme';
 import { AlertMessage } from '../../types/alert';
 import { SeverityBadge } from '../common/SeverityBadge';
+import { RiskExplanationAccordion } from './RiskExplanationAccordion';
+import { getAlertRiskReasons } from '../../utils/riskExplanation';
 
 interface Props {
   alert: AlertMessage;
@@ -12,6 +14,7 @@ interface Props {
 
 export const AlertCard: React.FC<Props> = ({ alert, onPressAction }) => {
   const isCritical = alert.severity === 'CRITICAL';
+  const riskFactors = getAlertRiskReasons(alert);
 
   return (
     <View style={[styles.card, isCritical && styles.cardCritical]}>
@@ -41,11 +44,14 @@ export const AlertCard: React.FC<Props> = ({ alert, onPressAction }) => {
         </View>
       </View>
 
+      {/* Why Am I At Risk? Expandable Accordion */}
+      <RiskExplanationAccordion factors={riskFactors} theme="light" />
+
       {alert.actionRequired && (
         <TouchableOpacity
           style={[
             styles.actionButton,
-            { backgroundColor: isCritical ? '#DC2626' : '#18181B' },
+            { backgroundColor: isCritical ? colors.severity.CRITICAL.main : colors.primary.main },
           ]}
           onPress={onPressAction}
           activeOpacity={0.85}
@@ -67,12 +73,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: 'rgba(23, 32, 51, 0.08)',
     marginBottom: spacing.sm,
     ...shadows.sm,
   },
   cardCritical: {
-    borderColor: 'rgba(220, 38, 38, 0.25)',
+    borderColor: 'rgba(185, 28, 28, 0.35)',
     backgroundColor: '#FFFFFF',
   },
   header: {
@@ -87,17 +93,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   timeText: {
-    color: '#9CA3AF',
+    color: '#8494A7',
     fontSize: 11,
   },
   title: {
-    color: '#18181B',
+    color: colors.text.primary,
     fontSize: 15,
     fontWeight: typography.fontWeight.heavy,
     marginVertical: 4,
   },
   body: {
-    color: '#71717A',
+    color: colors.text.secondary,
     fontSize: 12,
     lineHeight: 18,
     marginBottom: spacing.sm,
@@ -112,7 +118,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    color: '#71717A',
+    color: colors.text.secondary,
     fontSize: 11,
   },
   actionButton: {

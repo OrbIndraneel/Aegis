@@ -1,4 +1,4 @@
-import { Hazard, Shelter, EvacuationRoute, CascadePrediction, AuthorityStatistics, RoadClosureMarker, Incident } from '../../types';
+import { Hazard, Shelter, EvacuationRoute, CascadePrediction, AuthorityStatistics, RoadClosureMarker, Incident, CivilianFieldReport, VulnerableVillage, VulnerableRoad } from '../../types';
 import { AlertMessage as AlertType } from '../../types/alert';
 
 // ----------------------------------------------------
@@ -414,3 +414,127 @@ export const MOCK_AUTHORITY_STATS: AuthorityStatistics = {
   ndrfTeamsDeployed: 14,
   activeBroadcastAlerts: 4,
 };
+
+export const VULNERABLE_VILLAGES: VulnerableVillage[] = [
+  {
+    id: 'vil-01',
+    name: 'Rangpo Basti',
+    district: 'East Sikkim',
+    population: 3400,
+    coordinate: { latitude: 27.2180, longitude: 88.5100 },
+    riskLevel: 'CRITICAL',
+    slopeAngle: 46,
+    primaryRoadAccess: 'NH-10 Link',
+    isIsolated: true,
+    evacuationShelterId: 'sh-ner-01',
+  },
+  {
+    id: 'vil-02',
+    name: 'Singtam Riverside Hamlet',
+    district: 'East Sikkim',
+    population: 4800,
+    coordinate: { latitude: 27.2390, longitude: 88.5010 },
+    riskLevel: 'HIGH',
+    slopeAngle: 37,
+    primaryRoadAccess: 'Singtam Valley Link',
+    isIsolated: false,
+    evacuationShelterId: 'sh-ner-01',
+  },
+  {
+    id: 'vil-03',
+    name: 'Dikchu Valley Settlement',
+    district: 'East Sikkim',
+    population: 2100,
+    coordinate: { latitude: 27.3680, longitude: 88.5200 },
+    riskLevel: 'HIGH',
+    slopeAngle: 42,
+    primaryRoadAccess: 'North Sikkim Highway',
+    isIsolated: true,
+    evacuationShelterId: 'sh-ner-02',
+  },
+  {
+    id: 'vil-04',
+    name: 'Upper Sichey Hillside',
+    district: 'East Sikkim',
+    population: 5600,
+    coordinate: { latitude: 27.3320, longitude: 88.6080 },
+    riskLevel: 'MODERATE',
+    slopeAngle: 28,
+    primaryRoadAccess: 'Gangtok West Road',
+    isIsolated: false,
+    evacuationShelterId: 'sh-ner-02',
+  },
+];
+
+export const VULNERABLE_ROADS: VulnerableRoad[] = [
+  {
+    id: 'road-01',
+    code: 'NH-10',
+    corridorName: 'Sikkim Lifeline Highway (Siliguri - Gangtok)',
+    status: 'BLOCKED_IMPASSABLE',
+    criticalPasses: ['20th Mile', '29th Mile', 'Baluwakhani'],
+    blockadeLengthKm: 4.8,
+    alternativeBypass: 'Upper Ridge Mountain By-Pass via Singtam Ridge',
+  },
+  {
+    id: 'road-02',
+    code: 'Singtam-Dikchu Link',
+    corridorName: 'Teesta Hydro & Valley Arterial',
+    status: 'ONE_WAY_RESTRICTED',
+    criticalPasses: ['Dikchu Gorge Cut'],
+    blockadeLengthKm: 1.2,
+    alternativeBypass: 'Mangan Northern Ridge Road',
+  },
+  {
+    id: 'road-03',
+    code: 'Ranipool-Gangtok Corridor',
+    corridorName: 'East Sikkim Central Approach',
+    status: 'HIGH_RISK_WATCH',
+    criticalPasses: ['Ranipool Bridge Ramp'],
+    alternativeBypass: 'Tadong Overhead Bypass Road',
+  },
+];
+
+export const INITIAL_FIELD_REPORTS: CivilianFieldReport[] = [
+  {
+    id: 'fr-001',
+    reportType: 'GROUND_CRACKS',
+    title: 'Longitudinal Tension Cracks along Hill Cut',
+    description: 'Ground fracture ~4 inches wide opened behind Rangpo Upper School hillside terrace. Retaining wall showing visible tilt.',
+    coordinate: { latitude: 27.2210, longitude: 88.5140 },
+    locationName: 'Rangpo Basti Upper Slope',
+    severity: 'HIGH',
+    timestamp: Date.now() - 18 * 60 * 1000,
+    formattedTime: '18 mins ago',
+    status: 'VERIFIED_BY_SDRF',
+    reportedBy: 'Tenzing Norbu (Local Resident)',
+    contactPhone: '+91 98000 12345',
+  },
+  {
+    id: 'fr-002',
+    reportType: 'BLOCKED_ROAD',
+    title: 'Rockfall Boulders blocking NH-10 KM 22',
+    description: 'Three large boulders cascaded onto highway carriageway. Light vehicles halted; power lines tangled on slope.',
+    coordinate: { latitude: 27.2340, longitude: 88.5120 },
+    locationName: 'NH-10 20th Mile Pass',
+    severity: 'CRITICAL',
+    timestamp: Date.now() - 32 * 60 * 1000,
+    formattedTime: '32 mins ago',
+    status: 'UNDER_REVIEW',
+    reportedBy: 'BRO Patrol Unit 4',
+    contactPhone: '+91 3592 231011',
+  },
+  {
+    id: 'fr-003',
+    reportType: 'SLOPE_MOVEMENT',
+    title: 'Mud slurry and soil creep near Singtam',
+    description: 'Continuous slurry flow across culvert drain. Drainage blocked, overland water cutting road edge.',
+    coordinate: { latitude: 27.2420, longitude: 88.5020 },
+    locationName: 'Singtam Valley Lower Cut',
+    severity: 'MODERATE',
+    timestamp: Date.now() - 55 * 60 * 1000,
+    formattedTime: '55 mins ago',
+    status: 'SUBMITTED',
+    reportedBy: 'Suman Rai (Citizen Observer)',
+  },
+];

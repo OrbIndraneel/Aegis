@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlertOctagon, PhoneCall, X, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { AlertOctagon, PhoneCall, X, MapPin, CheckCircle2, AlertTriangle, Radio, Flashlight, Volume2 } from 'lucide-react-native';
 import { Header } from '../../src/components/common/Header';
 import { ConnectionStatus } from '../../src/components/common/ConnectionStatus';
 import { colors, typography, spacing, radius, shadows } from '../../src/theme';
@@ -11,6 +11,8 @@ import { MockSosService, SosReason, SosDispatchRecord } from '../../src/services
 import { ApiClient } from '../../src/services/api/client';
 import { triggerCriticalHapticPulse } from '../../src/utils/emergencyAlertSound';
 import { useTranslation } from '../../src/i18n';
+import { NativeRescueBeaconModal } from '../../src/components/beacon/NativeRescueBeaconModal';
+import { TriVectorBeaconService } from '../../src/services/beacon/triVectorBeaconService';
 
 export default function CivilianSosScreen() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function CivilianSosScreen() {
   const [activeRecord, setActiveRecord] = useState<SosDispatchRecord | null>(null);
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [isOfflineQueued, setIsOfflineQueued] = useState(false);
+  const [isBeaconModalVisible, setIsBeaconModalVisible] = useState(false);
 
   const handleConfirmSos = async () => {
     setIsTransmitting(true);
@@ -47,6 +50,19 @@ export default function CivilianSosScreen() {
       profile.bloodGroup,
       profile.medicalConditions
     );
+
+    // 3. Automatically activate Native Tri-Vector Rescue Beacon (Torch + Siren + BLE)
+    await TriVectorBeaconService.activateBeacon({
+      userId: profile.id,
+      fullName: profile.fullName || 'Citizen User',
+      bloodGroup: profile.bloodGroup || 'O+',
+      sosReason: selectedReason,
+      medicalNotes: profile.medicalConditions,
+      coordinate: profile.currentLocation,
+      language: profile.language || 'EN',
+      mode: 'TURBO_CRITICAL',
+    });
+
     setIsTransmitting(false);
     setActiveRecord(record);
     setIsConfirmed(true);
@@ -63,6 +79,7 @@ export default function CivilianSosScreen() {
           style: 'destructive',
           onPress: async () => {
             await MockSosService.cancelSos();
+            await TriVectorBeaconService.deactivateBeacon();
             setIsConfirmed(false);
             setActiveRecord(null);
           },
@@ -147,6 +164,21 @@ export default function CivilianSosScreen() {
                 {isTransmitting ? t('transmittingBeacon') : t('confirmDispatchSos')}
               </Text>
             </TouchableOpacity>
+
+            {/* TRI-VECTOR RESCUE BEACON BUTTON */}
+            <TouchableOpacity
+              style={styles.triVectorBtn}
+              onPress={() => setIsBeaconModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.triVectorIconCircle}>
+                <Radio size={20} color="#EF4444" />
+              </View>
+              <View style={styles.flex1}>
+                <Text style={styles.triVectorTitle}>Launch Tri-Vector Rescue Beacon</Text>
+                <Text style={styles.triVectorSub}>Camera Torch • Speaker Siren • Offline BLE</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         ) : (
           /* ACTIVE SOS DISPATCHED STATE */
@@ -161,6 +193,24 @@ export default function CivilianSosScreen() {
               <Text style={styles.trackingId}>{t('trackingId')}: {activeRecord?.sosId}</Text>
               <Text style={styles.assignedUnit}>{t('assignedUnit')}: {activeRecord?.assignedUnit}</Text>
             </View>
+
+            {/* ACTIVE BEACON CONTROLLER BANNER */}
+            <TouchableOpacity
+              style={styles.triVectorActiveCard}
+              onPress={() => setIsBeaconModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.triVectorActiveHeader}>
+                <Radio size={18} color="#EF4444" />
+                <Text style={styles.triVectorActiveTitle}>Tri-Vector Beacon Active</Text>
+                <View style={styles.liveBeaconBadge}>
+                  <Text style={styles.liveBeaconBadgeText}>LIVE</Text>
+                </View>
+              </View>
+              <Text style={styles.triVectorActiveSub}>
+                Hardware torch Morse pulse & loudspeaker announcements running. Tap to manage or mute.
+              </Text>
+            </TouchableOpacity>
 
             {isOfflineQueued && (
               <View style={styles.offlineSyncNotice}>
@@ -210,6 +260,13 @@ export default function CivilianSosScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Tri-Vector Rescue Beacon Modal */}
+      <NativeRescueBeaconModal
+        visible={isBeaconModalVisible}
+        onClose={() => setIsBeaconModalVisible(false)}
+        sosReason={selectedReason}
+      />
     </SafeAreaView>
   );
 }
@@ -441,5 +498,70 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 13,
     fontWeight: typography.fontWeight.heavy,
+  },
+  triVectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E293B',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  triVectorIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  triVectorTitle: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.bold,
+  },
+  triVectorSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  triVectorActiveCard: {
+    backgroundColor: '#1E293B',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  triVectorActiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  triVectorActiveTitle: {
+    flex: 1,
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: typography.fontWeight.bold,
+  },
+  liveBeaconBadge: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: radius.sm,
+  },
+  liveBeaconBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: typography.fontWeight.heavy,
+  },
+  triVectorActiveSub: {
+    color: '#94A3B8',
+    fontSize: 11,
   },
 });

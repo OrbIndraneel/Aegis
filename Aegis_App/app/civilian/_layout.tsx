@@ -18,6 +18,7 @@ export default function CivilianLayout() {
         <Tabs.Screen name="evacuation" options={{ title: 'Evacuation' }} />
         <Tabs.Screen name="shelters" options={{ title: 'Shelters' }} />
         <Tabs.Screen name="alerts" options={{ title: 'Alerts' }} />
+        <Tabs.Screen name="report" options={{ title: 'Report' }} />
         <Tabs.Screen name="sos" options={{ title: 'EMERGENCY' }} />
         <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
         <Tabs.Screen name="offline" options={{ title: 'Offline' }} />

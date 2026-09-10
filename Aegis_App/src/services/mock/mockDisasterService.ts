@@ -8,6 +8,7 @@ import {
   DisasterType,
 } from '../../types/disaster';
 import { AlertMessage, AlertDispatchPayload } from '../../types/alert';
+import { CivilianFieldReport, FieldReportStatus, VulnerableVillage, VulnerableRoad } from '../../types';
 import {
   VADODARA_HAZARDS,
   VADODARA_SHELTERS,
@@ -16,7 +17,12 @@ import {
   UTTARAKHAND_SHELTERS,
   MOCK_ALERTS,
   MOCK_AUTHORITY_STATS,
+  INITIAL_FIELD_REPORTS,
+  VULNERABLE_VILLAGES,
+  VULNERABLE_ROADS,
 } from './mockData';
+
+let fieldReportsStore: CivilianFieldReport[] = [...INITIAL_FIELD_REPORTS];
 
 // Simulated Network Delay helper to mimic realistic API calls
 const delay = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -157,5 +163,55 @@ export class MockDisasterService {
     // Append to alerts stream
     MOCK_ALERTS.unshift(newAlert);
     return newAlert;
+  }
+
+  /**
+   * Fetch civilian field reports
+   */
+  static async getFieldReports(): Promise<CivilianFieldReport[]> {
+    await delay(200);
+    return [...fieldReportsStore];
+  }
+
+  /**
+   * Submit new civilian field report
+   */
+  static async submitFieldReport(
+    report: Omit<CivilianFieldReport, 'id' | 'timestamp' | 'formattedTime' | 'status'>
+  ): Promise<CivilianFieldReport> {
+    await delay(300);
+    const newReport: CivilianFieldReport = {
+      ...report,
+      id: `fr-${Date.now()}`,
+      timestamp: Date.now(),
+      formattedTime: 'Just now',
+      status: 'SUBMITTED',
+    };
+    fieldReportsStore.unshift(newReport);
+    return newReport;
+  }
+
+  /**
+   * Update report status (e.g. verified by SDRF)
+   */
+  static async updateFieldReportStatus(id: string, status: FieldReportStatus): Promise<void> {
+    await delay(200);
+    fieldReportsStore = fieldReportsStore.map((r) => (r.id === id ? { ...r, status } : r));
+  }
+
+  /**
+   * Fetch vulnerable villages list
+   */
+  static async getVulnerableVillages(): Promise<VulnerableVillage[]> {
+    await delay(150);
+    return VULNERABLE_VILLAGES;
+  }
+
+  /**
+   * Fetch vulnerable road network
+   */
+  static async getVulnerableRoads(): Promise<VulnerableRoad[]> {
+    await delay(150);
+    return VULNERABLE_ROADS;
   }
 }

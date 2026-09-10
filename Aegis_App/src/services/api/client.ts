@@ -3,6 +3,7 @@ import { SupabaseDirectService, isSupabaseConfigured } from '../supabaseClient';
 import { SosQueueService } from '../sos/sosQueueService';
 import { HazardZone, Shelter, EvacuationRoute, CascadePrediction, AuthorityStats, Coordinate } from '../../types/disaster';
 import { AlertMessage, AlertDispatchPayload } from '../../types/alert';
+import { RescueBeacon, CivilianFieldReport, FieldReportStatus, VulnerableVillage, VulnerableRoad } from '../../types';
 
 /**
  * Centralized API Service Abstraction Layer for AEGIS AI.
@@ -533,6 +534,90 @@ export class ApiClient {
     });
 
     return { status: 'QUEUED_OFFLINE', alertId: queued.id, isOfflineQueued: true };
+  }
+
+  public static async fetchBeacons(): Promise<RescueBeacon[]> {
+    try {
+      const res = await this.request<{ count: number; beacons: RescueBeacon[] }>('/api/v1/telemetry/beacons');
+      return res.beacons || [];
+    } catch {
+      return [];
+    }
+  }
+
+  public static async fetchFieldReports(): Promise<CivilianFieldReport[]> {
+    if (this.enableMock) {
+      return await MockDisasterService.getFieldReports();
+    }
+    try {
+      const res = await this.request<{ reports?: CivilianFieldReport[]; count?: number } | CivilianFieldReport[]>('/api/landslides/field-reports');
+      if (Array.isArray(res)) return res;
+      return res.reports || [];
+    } catch {
+      return await MockDisasterService.getFieldReports();
+    }
+  }
+
+  public static async submitFieldReport(
+    report: Omit<CivilianFieldReport, 'id' | 'timestamp' | 'formattedTime' | 'status'>
+  ): Promise<CivilianFieldReport> {
+    if (!this.enableMock) {
+      try {
+        const payload = {
+          reporter_id: report.reportedBy || 'CIVILIAN_USER',
+          reporter_role: 'Civilian',
+          latitude: report.coordinate.latitude,
+          longitude: report.coordinate.longitude,
+          incident_type: report.reportType,
+          description: report.description,
+          media_url: report.photoUri || null,
+        };
+        const res = await this.request<any>('/api/landslides/field-reports', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (res) {
+          return {
+            id: res.report_id || `fr-${Date.now()}`,
+            reportType: report.reportType,
+            title: report.title,
+            description: report.description,
+            coordinate: report.coordinate,
+            locationName: report.locationName,
+            severity: report.severity,
+            photoUri: report.photoUri,
+            timestamp: Date.now(),
+            formattedTime: 'Just now',
+            status: 'SUBMITTED',
+            reportedBy: report.reportedBy,
+          };
+        }
+      } catch (err) {
+        console.warn('[ApiClient] Live field report submission failed, falling back to mock & local:', err);
+      }
+    }
+    return await MockDisasterService.submitFieldReport(report);
+  }
+
+  public static async updateFieldReportStatus(id: string, status: FieldReportStatus): Promise<void> {
+    if (!this.enableMock) {
+      try {
+        await this.request<any>(`/api/landslides/field-reports/${id}/verify`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        });
+        return;
+      } catch {}
+    }
+    await MockDisasterService.updateFieldReportStatus(id, status);
+  }
+
+  public static async fetchVulnerableVillages(): Promise<VulnerableVillage[]> {
+    return await MockDisasterService.getVulnerableVillages();
+  }
+
+  public static async fetchVulnerableRoads(): Promise<VulnerableRoad[]> {
+    return await MockDisasterService.getVulnerableRoads();
   }
 }
 

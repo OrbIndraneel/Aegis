@@ -14,6 +14,7 @@ export const gu: typeof en = {
   tabMap: 'નકશો',
   tabAlerts: 'ચેતવણીઓ',
   tabRoute: 'માર્ગ',
+  tabReport: 'અહેવાલ',
   tabSos: 'એસ.ઓ.એસ',
   tabProfile: 'પ્રોફાઇલ',
 

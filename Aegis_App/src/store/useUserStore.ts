@@ -20,6 +20,7 @@ interface UserState {
   isSosActive: boolean;
   sosCountdown: number;
   isLowBatteryModeEnabled: boolean;
+  isVoiceGuidanceEnabled: boolean;
   offlineMedicalCard: OfflineMedicalCard;
 
   // Actions
@@ -28,6 +29,7 @@ interface UserState {
   setLanguage: (lang: 'EN' | 'HI' | 'GU') => void;
   toggleOfflineMode: () => void;
   toggleLowBatteryMode: () => void;
+  toggleVoiceGuidance: () => void;
   triggerSos: () => void;
   cancelSos: () => void;
   addEmergencyContact: (contact: Omit<EmergencyContact, 'id'>) => void;
@@ -36,6 +38,7 @@ interface UserState {
 
 export const useUserStore = create<UserState>((set, get) => ({
   isLowBatteryModeEnabled: false,
+  isVoiceGuidanceEnabled: true,
   offlineMedicalCard: {
     bloodGroup: 'O+ (Positive)',
     allergies: 'Penicillin, Dust Mites',
@@ -105,6 +108,16 @@ export const useUserStore = create<UserState>((set, get) => ({
         storage.default.setItem('@aegis_low_battery_mode', JSON.stringify(next)).catch(() => {});
       });
       return { isLowBatteryModeEnabled: next };
+    });
+  },
+
+  toggleVoiceGuidance: () => {
+    set((state) => {
+      const next = !state.isVoiceGuidanceEnabled;
+      import('../services/audio/voiceGuidanceService').then(({ VoiceGuidanceService }) => {
+        VoiceGuidanceService.setVoiceGuidanceEnabled(next);
+      });
+      return { isVoiceGuidanceEnabled: next };
     });
   },
 

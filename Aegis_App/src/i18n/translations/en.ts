@@ -12,6 +12,7 @@ export const en = {
   tabMap: 'Map',
   tabAlerts: 'Alerts',
   tabRoute: 'Route',
+  tabReport: 'Report',
   tabSos: 'SOS',
   tabProfile: 'Profile',
 

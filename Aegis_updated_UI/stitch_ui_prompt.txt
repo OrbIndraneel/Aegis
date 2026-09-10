@@ -1,0 +1,121 @@
+================================================================================
+AEGIS - AI-BASED EARLY WARNING & LANDSLIDE MONITORING SYSTEM (SIH26001)
+STITCH DESIGN PROMPT & SPECIFICATION FILE
+================================================================================
+
+PROJECT TITLE: AEGIS - AI-Based Early Warning & Landslide Risk Monitoring System in NER
+TARGET AUDIENCE: Civilians facing mountain hazards & MDoNER / SDMA Authority Command Control Desk
+VISUAL STYLE: Clean Light / Off-White Canvas with Floating Dark Liquid Glass Headers, Micro-Animations, Stress-Optimized High-Contrast UI
+
+--------------------------------------------------------------------------------
+1. DESIGN SYSTEM & COLOR PALETTE TOKENS
+--------------------------------------------------------------------------------
+- Primary Background: #0A0F1A / #F8FAFC (Clean light canvas with dark floating glass)
+- Secondary Background: #0F172A (Navy Slate Glass Card)
+- Surface Cards: #1E293B (Elevated Glass Container with 1px translucent borders)
+- Critical Severity: #DC2626 (Bright Emergency Red) / Glow Shadow: rgba(220, 38, 38, 0.4)
+- High Severity: #EA580C (Vivid Orange)
+- Moderate Severity: #F59E0B (Amber Gold)
+- Safety & Success: #10B981 (Emerald Green) / Glow Shadow: rgba(16, 185, 129, 0.4)
+- Tech Accent Blue: #2563EB (Royal Sapphire)
+- Typography: Inter / Outfit (Heavy bold headers, ultra-legible high-contrast body)
+
+--------------------------------------------------------------------------------
+2. SCREEN 1: CIVILIAN HOME & EMERGENCY SITUATION MODE
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design a mobile Civilian Disaster Home Screen for AEGIS. The background is an interactive vector map showing East Sikkim mountain contours, glowing red landslide hazard polygons (NH-10 20th Mile) and staging shelters. At top, place a floating dark liquid glass banner reading 'LANDSLIDE RED WARNING - NH-10 20th Mile & Singtam Valley Corridor'.
+
+When a CRITICAL hazard is active, render a stress-optimized 'EMERGENCY SITUATION MODE' bottom sheet with a red pulsing header:
+- Header: 'CRITICAL EMERGENCY ACTIVE: NH-10 20th Mile Slope Failure' with a 'Standard View' toggle button.
+- Grid Cards:
+  1. 'Current Hazard: FLOOD (CRITICAL)'
+  2. 'Distance from Danger: 1.8 km (Within 2.5 km Alert Radius)'
+- Large Action Cards:
+  1. Emerald Green Action Card: 'SAFEST EVACUATION ROUTE - 14 mins • 4.2 km (Bypasses NH-10 Debris)' with an arrow icon.
+  2. Sapphire Blue Action Card: 'RECOMMENDED SAFE SHELTER - Singtam Community Staging Complex • 3.8 km (44% Occupied)' with an arrow icon.
+- Full-width Crimson Button at bottom: 'TRIGGER EMERGENCY RESCUE SOS' with a pulsing octagon icon."
+
+--------------------------------------------------------------------------------
+3. SCREEN 2: HAZARD ALERTS & 'WHY AM I AT RISK?' EXPLANATION ENGINE
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design a feed screen of Emergency Hazard Cards for AEGIS.
+Each card includes:
+- Severity Badge ('CRITICAL' in bright red pill) and timestamp ('12 mins ago').
+- Title: 'RED ALERT: Landslide Imminent Warning for NH-10 20th Mile'.
+- Body: 'Sikkim SDMA & BRO mandate immediate civilian movement to Singtam Relief Camp via Upper Ridge Bypass.'
+- Expandable Accordion Component titled 'WHY AM I AT RISK? (5 Contributing Signals)':
+  When expanded, show clean bullet points with icons:
+  1. [Map Pin] 'Inside Active Hazard Perimeter: 1.8 km from epicentre (within 2.5 km radius).'
+  2. [Waves] 'Pore Water Pressure Spike: 88% soil moisture saturation in regolith.'
+  3. [Cloud Rain] 'Intense Monsoon Precipitation: 210 mm cumulative 72h rainfall recorded.'
+  4. [Alert Triangle] 'Elevated Slope Instability: 42° slope angle in foliated gneiss.'
+  5. [Octagon Alert] 'Lifeline Highway Blockades: NH-10 20th Mile sealed by BRO.'
+- Bottom Action Button: 'ACTION REQUIRED: EVACUATE IMMEDIATELY'."
+
+--------------------------------------------------------------------------------
+4. SCREEN 3: SHELTER DIRECTORY & LOAD BALANCING ENGINE
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design a Shelter Directory screen for AEGIS with intelligent load balancing highlights.
+- Top: Search input bar 'Search nearby shelters by name or address...' and horizontal filter chips ('All Camps', 'Available Only', 'Medical Desk', 'Food Rations').
+- Callout Banner at top: 'SHELTER LOAD BALANCER ACTIVE: Recommended by distance + capacity availability (prevents overcrowding).'
+- Top Recommended Shelter Card (Highlighted with emerald glowing border & 'RECOMMENDED BY LOAD BALANCER' badge):
+  - Name: 'Singtam Community Staging Complex'
+  - Subtitle: '3.8 km away • Singtam NH-10 Junction, East Sikkim'
+  - Rationale Banner: 'Recommended: 3.8 km • 44% occupied (High Bed Availability)'
+  - Progress Bar: 44% (1100 / 2500 beds) in green.
+  - Amenity Chips: [Check] Medical, [Check] Food Rations, [Check] Clean Water, [Check] Power Gen.
+  - Emerald Button: 'Route to Optimal Shelter'.
+- Secondary Shelter Card (Overcrowded - distance 1.4 km, 94% full):
+  - Rationale Banner: 'Sub-optimal: 1.4 km • 94% occupied (Near Capacity)'
+  - Progress Bar: 94% in red."
+
+--------------------------------------------------------------------------------
+5. SCREEN 4: ACTIVE EVACUATION & SPOKEN VOICE GUIDANCE
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design an Active Evacuation Navigation screen for AEGIS.
+- Top Map View (240px height): Displays user location pin, green AI safe polyline corridor to shelter, and red danger surge zone.
+- Voice Guidance Control Bar:
+  - Left: Speaker icon + Text 'SPOKEN VOICE GUIDANCE - Spoken turn-by-turn navigation instructions'.
+  - Right: Toggle switch pill (Active state: 'ON' in emerald green).
+- Active Navigation Card:
+  - Header: 'LIVE EVACUATION NAVIGATION ACTIVE' with green pulsing dot.
+  - Large Metrics: '14 MINS (REMAINING ETA)' and '4.2 KM (DISTANCE TO SHELTER)'.
+  - Current Step Box: Turn right icon + Bold text: 'Follow NH-10 Upper Bypass ridge route towards Singtam • In 800m'.
+  - Bottom Button: 'End Navigation'."
+
+--------------------------------------------------------------------------------
+6. SCREEN 5: CIVILIAN SOS & RESCUE BEACON
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design a Civilian Distress SOS screen with active Rescue Beacon controls for AEGIS.
+- Distress Reason Selector: Grid of reason chips ('Landslide Blockade', 'Medical Emergency', 'Trapped in Vehicle', 'Slope Collapse').
+- Active Rescue Beacon Card (pulsing gold & red border):
+  - Header: 'AUTHORITY RESCUE BEACON ACTIVE' with yellow radio strobe icon.
+  - Status Pill: 'EN ROUTE - Assigned Unit: SDRF 2nd Mountain Battalion'.
+  - Transmitted GPS Coordinates: '27.2340° N, 88.5120° E'.
+  - Evacuee Profile Card: Name, Phone, Blood Group (O+), Medical Notes.
+  - Flashlight Strobe Button: Amber gold button 'FLASHING TORCH ACTIVE' with disclosure text '* Audio/Visual Beacon active. Flashlight control subject to hardware capability & Android OS background permissions.'
+  - Red Outline Button at bottom: 'Cancel Active SOS Beacon'."
+
+--------------------------------------------------------------------------------
+7. SCREEN 6: AUTHORITY CONTROL ROOM & INCIDENT DISPATCH
+--------------------------------------------------------------------------------
+PROMPT FOR STITCH:
+"Design an Authority Control Room Incident Management dashboard for AEGIS.
+- Header: 'INCIDENT MANAGEMENT & RESCUE DISPATCH'.
+- Incident Cards List:
+  - Card 1: 'NH-10 20th Mile Slope Failure' (CRITICAL / Evacuation status pill).
+  - Details: 4,500 citizens affected, BRO Project Swastik dozer teams deployed.
+  - Escalation Risk Callout: 'GAT Cascade: Secondary rockfall and Teesta valley damming'.
+  - Gold Action Button: 'ACTIVATE RESCUE BEACON ON CIVILIAN DEVICE' (Triggers remote siren, strobe ring, and flashlight on citizen's mobile app).
+- Emergency Alert Broadcast Composer Card:
+  - Target Region input: 'East Sikkim - NH-10 Corridor & Singtam'.
+  - Severity Chips: LOW, MODERATE, HIGH, CRITICAL.
+  - Action Chips: Evacuate, High Ground, Stay Indoors.
+  - Headline & Body text inputs with Live Civilian Card Preview.
+  - Red Action Button: 'DISPATCH ALERT'."
+================================================================================
