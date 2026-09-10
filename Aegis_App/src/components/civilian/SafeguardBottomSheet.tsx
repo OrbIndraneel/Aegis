@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { CornerUpLeft } from 'lucide-react-native';
+import { CornerUpLeft, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../../i18n';
 
 interface Props {
@@ -14,48 +15,64 @@ export const SafeguardBottomSheet: React.FC<Props> = ({
   onNavigationPress,
 }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <View style={styles.sheetContainer}>
-      {/* Top Drag Handle */}
-      <View style={styles.dragHandleContainer}>
+    <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 12) + 70 }]}>
+      {/* Top Drag Handle / Collapse Toggle */}
+      <TouchableOpacity
+        style={styles.dragHandleContainer}
+        onPress={() => setIsCollapsed(!isCollapsed)}
+        activeOpacity={0.7}
+      >
         <View style={styles.dragHandle} />
-      </View>
-
-      {/* 1. Navigation Instruction Card */}
-      <TouchableOpacity
-        style={styles.navCard}
-        onPress={onNavigationPress}
-        activeOpacity={0.85}
-      >
-        <View style={styles.navIconCircle}>
-          <CornerUpLeft size={22} color="#FFFFFF" />
-        </View>
-        <View style={styles.navTextContainer}>
-          <Text style={styles.navTitle}>{t('turnLeft')}</Text>
-          <Text style={styles.navSubtitle}>{t('proceedSafeHaven')}</Text>
+        <View style={styles.handleLabelRow}>
+          <Text style={styles.handleLabel}>
+            {isCollapsed ? 'TAP TO EXPAND SAFEGUARD' : 'TAP TO MINIMIZE & VIEW FULL MAP'}
+          </Text>
+          {isCollapsed ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
         </View>
       </TouchableOpacity>
 
-      {/* 2. Dominant Emergency SOS Button */}
-      <TouchableOpacity
-        style={styles.sosButton}
-        onPress={onSosPress}
-        activeOpacity={0.85}
-        accessibilityLabel={t('emergencySosButton')}
-      >
-        <View style={styles.sosContentRow}>
-          <Text style={styles.sosFullText}>EMERGENCY</Text>
-        </View>
-      </TouchableOpacity>
+      {!isCollapsed && (
+        <>
+          {/* 1. Navigation Instruction Card */}
+          <TouchableOpacity
+            style={styles.navCard}
+            onPress={onNavigationPress}
+            activeOpacity={0.85}
+          >
+            <View style={styles.navIconCircle}>
+              <CornerUpLeft size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.navTextContainer}>
+              <Text style={styles.navTitle}>{t('turnLeft')}</Text>
+              <Text style={styles.navSubtitle}>{t('proceedSafeHaven')}</Text>
+            </View>
+          </TouchableOpacity>
 
-      {/* 3. Offline Local Cache Status Card */}
-      <View style={styles.offlineStatusCard}>
-        <View style={styles.statusDot} />
-        <Text style={styles.offlineStatusText}>
-          {t('offlineStatus')}
-        </Text>
-      </View>
+          {/* 2. Dominant Emergency SOS Button */}
+          <TouchableOpacity
+            style={styles.sosButton}
+            onPress={onSosPress}
+            activeOpacity={0.85}
+            accessibilityLabel={t('emergencySosButton')}
+          >
+            <View style={styles.sosContentRow}>
+              <Text style={styles.sosFullText}>EMERGENCY</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* 3. Offline Local Cache Status Card */}
+          <View style={styles.offlineStatusCard}>
+            <View style={styles.statusDot} />
+            <Text style={styles.offlineStatusText}>
+              {t('offlineStatus')}
+            </Text>
+          </View>
+        </>
+      )}
     </View>
   );
 };
@@ -88,6 +105,18 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#475569',
+  },
+  handleLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  handleLabel: {
+    color: '#94A3B8',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   navCard: {
     flexDirection: 'row',

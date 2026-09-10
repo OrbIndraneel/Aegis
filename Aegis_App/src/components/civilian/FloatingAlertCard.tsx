@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from '../../i18n';
 
@@ -8,12 +8,14 @@ interface Props {
   subtitle?: string;
   actionText?: string;
   severity?: string;
+  onPress?: () => void;
 }
 
 export const FloatingAlertCard: React.FC<Props> = ({
   title,
   subtitle,
   actionText,
+  onPress,
 }) => {
   const { t } = useTranslation();
 
@@ -22,7 +24,12 @@ export const FloatingAlertCard: React.FC<Props> = ({
   const displayAction = actionText || t('reroutingText');
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.88}
+    >
       <View style={styles.iconContainer}>
         <AlertTriangle size={24} color="#EF4444" />
       </View>
@@ -33,7 +40,7 @@ export const FloatingAlertCard: React.FC<Props> = ({
         <Text style={styles.alertSubtitle}>{displaySubtitle}</Text>
         <Text style={styles.actionText}>{displayAction}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

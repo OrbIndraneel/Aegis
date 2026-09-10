@@ -43,7 +43,7 @@ export const useDisasterStore = create<DisasterState>((set, get) => ({
   vulnerableRoads: [],
   isLoading: false,
   error: null,
-  isEmergencyModeActive: true,
+  isEmergencyModeActive: false,
 
   setSelectedCity: (city: string) => {
     set({ selectedCity: city });

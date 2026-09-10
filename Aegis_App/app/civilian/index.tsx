@@ -91,6 +91,7 @@ export default function CivilianHomeScreen() {
             subtitle={activeAlert ? `${activeAlert.targetRegion} • Issued ${activeAlert.issuedAt}` : 'Operational hazard telemetry monitoring active'}
             actionText={activeAlert ? (activeAlert.actionRequired || 'Evacuate using AI dynamic corridor') : 'Tap to view safe evacuation corridors'}
             severity={criticalHazard?.severity || 'CRITICAL'}
+            onPress={() => setEmergencyModeActive(true)}
           />
         </View>
 

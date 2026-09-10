@@ -19,7 +19,7 @@
       "package": "com.aegis.ai",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyCyKahAehSShdxhN1LOfObLMroOD2SVbYs"
         }
       },
       "adaptiveIcon": {
