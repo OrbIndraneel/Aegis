@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, LayoutChangeEvent } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Map, Bell, Footprints, AlertOctagon, FileText } from 'lucide-react-native';
@@ -34,8 +34,9 @@ export const AnimatedBottomNavigation: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
+  // Active tab determination based on router pathname
   const activeIndex = React.useMemo(() => {
-    if (pathname === '/civilian' || pathname === '/civilian/' || pathname === '/civilian/index') return 0;
+    if (!pathname || pathname === '/' || pathname === '/civilian') return 0;
     if (pathname === '/civilian/alerts') return 1;
     if (pathname === '/civilian/evacuation' || pathname === '/civilian/route') return 2;
     if (pathname === '/civilian/report') return 3;
@@ -43,16 +44,14 @@ export const AnimatedBottomNavigation: React.FC = () => {
     return 0;
   }, [pathname]);
 
-  // Layout tracking for animated indicator positioning
-  const containerWidth = useSharedValue(0);
+  // Layout tracking for animated indicator positioning (React state avoids Reanimated render warnings)
+  const [containerWidth, setContainerWidth] = useState(0);
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
 
-  const tabWidth = containerWidth.value > 0 ? containerWidth.value / TABS.length : 0;
-
   useEffect(() => {
-    if (containerWidth.value > 0) {
-      const targetWidth = containerWidth.value / TABS.length;
+    if (containerWidth > 0) {
+      const targetWidth = containerWidth / TABS.length;
       const targetX = activeIndex * targetWidth;
 
       indicatorX.value = withSpring(targetX, {
@@ -66,11 +65,11 @@ export const AnimatedBottomNavigation: React.FC = () => {
         stiffness: 180,
       });
     }
-  }, [activeIndex, containerWidth.value]);
+  }, [activeIndex, containerWidth]);
 
   const handleContainerLayout = (e: LayoutChangeEvent) => {
     const { width } = e.nativeEvent.layout;
-    containerWidth.value = width;
+    setContainerWidth(width);
 
     const initialTabWidth = width / TABS.length;
     indicatorWidth.value = initialTabWidth;

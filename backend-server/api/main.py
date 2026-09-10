@@ -93,6 +93,7 @@ async def sanitized_unhandled_exception_handler(request: Request, exc: Exception
 # Core Disaster Routes (100% Intact & Backward Compatible)
 app.include_router(predict_routes.router, prefix="/api", tags=["Cascade Prediction"])
 app.include_router(landslide_routes.router, prefix="/api/landslide", tags=["Landslide Intelligence (SIH 26001)"])
+app.include_router(landslide_routes.router, prefix="/api/landslides", tags=["Landslide Intelligence (SIH 26001)"])
 app.include_router(evacuation_routes.router, prefix="/api", tags=["Route Optimization"])
 app.include_router(shelter_routes.router, prefix="/api", tags=["Safe Shelters"])
 app.include_router(sos_routes.router, prefix="/api", tags=["Emergency SOS Alerts"])

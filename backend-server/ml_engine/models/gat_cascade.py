@@ -61,6 +61,27 @@ if TORCH_AVAILABLE:
             risk_logits = self.fc_risk(feat)
             
             return cascade_prob, lead_time_mins, risk_logits
+
+        def predict_heuristic(self, rainfall_mm: float, river_level_m: float, slope_deg: float = 35.0) -> Dict[str, Any]:
+            # Fast sweet-spot logistic calculation
+            z = (rainfall_mm - 75.0) / 25.0 + (river_level_m - 4.0) / 1.5 + (slope_deg - 30.0) / 10.0
+            prob = 1.0 / (1.0 + math.exp(-z))
+            prob = round(min(0.98, max(0.02, prob)), 2)
+            
+            if prob >= 0.70:
+                risk = "High"
+                lead_time = 35
+            elif prob >= 0.35:
+                risk = "Medium"
+                lead_time = 65
+            else:
+                risk = "Low"
+                lead_time = 180
+            return {
+                "cascade_probability": prob,
+                "estimated_lead_time_mins": lead_time,
+                "risk_level": risk
+            }
 else:
     class GATCascadeNet:
         """Fallback Fast-Heuristic Predictor when PyTorch is loading."""

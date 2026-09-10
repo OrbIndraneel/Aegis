@@ -172,3 +172,19 @@ async def verify_field_report(report_id: str = Path(...), status: str = Query(..
         "report": target,
         "road_network_action": "Road edge updated with hazard penalty 100.0" if status.lower() == "verified" else "No road changes",
     }
+
+
+class VerifyReportPayload(BaseModel):
+    status: Optional[str] = "Verified"
+
+
+@router.patch("/field-reports/{report_id}/verify", summary="Verify or Reject Citizen Field Report (REST PATCH)")
+@router.post("/field-reports/{report_id}/verify", summary="Verify or Reject Citizen Field Report (REST POST)")
+async def verify_field_report_alias(
+    report_id: str = Path(...),
+    payload: Optional[VerifyReportPayload] = None,
+    status: Optional[str] = Query(None)
+):
+    target_status = (payload.status if payload and payload.status else status) or "Verified"
+    return await verify_field_report(report_id=report_id, status=target_status)
+

@@ -550,9 +550,14 @@ export class ApiClient {
       return await MockDisasterService.getFieldReports();
     }
     try {
-      const res = await this.request<{ reports?: CivilianFieldReport[]; count?: number } | CivilianFieldReport[]>('/api/landslides/field-reports');
+      let res: any;
+      try {
+        res = await this.request<{ reports?: CivilianFieldReport[]; count?: number } | CivilianFieldReport[]>('/api/landslides/field-reports');
+      } catch {
+        res = await this.request<{ reports?: CivilianFieldReport[]; count?: number } | CivilianFieldReport[]>('/api/landslide/field-reports');
+      }
       if (Array.isArray(res)) return res;
-      return res.reports || [];
+      return res?.reports || [];
     } catch {
       return await MockDisasterService.getFieldReports();
     }
@@ -572,10 +577,18 @@ export class ApiClient {
           description: report.description,
           media_url: report.photoUri || null,
         };
-        const res = await this.request<any>('/api/landslides/field-reports', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        let res: any;
+        try {
+          res = await this.request<any>('/api/landslides/field-reports', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          res = await this.request<any>('/api/landslide/field-reports', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        }
         if (res) {
           return {
             id: res.report_id || `fr-${Date.now()}`,
@@ -602,11 +615,18 @@ export class ApiClient {
   public static async updateFieldReportStatus(id: string, status: FieldReportStatus): Promise<void> {
     if (!this.enableMock) {
       try {
-        await this.request<any>(`/api/landslides/field-reports/${id}/verify`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status }),
-        });
-        return;
+        try {
+          await this.request<any>(`/api/landslides/field-reports/${id}/verify`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
+          });
+          return;
+        } catch {
+          await this.request<any>(`/api/landslide/verify-report/${id}?status=${status}`, {
+            method: 'POST',
+          });
+          return;
+        }
       } catch {}
     }
     await MockDisasterService.updateFieldReportStatus(id, status);

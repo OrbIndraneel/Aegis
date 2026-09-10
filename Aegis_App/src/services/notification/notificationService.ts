@@ -1,17 +1,35 @@
-import * as Notifications from 'expo-notifications';
 import { Platform, Vibration } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { EmergencyAlert, HazardSeverity } from '../../types';
 
-// Configure notification presentation for foreground alerts
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let Notifications: any = null;
+
+// Expo Go SDK 53+ on Android throws an unhandled error immediately when expo-notifications is loaded.
+// By detecting Expo Go via Constants, we prevent requiring the module in Expo Go while keeping it active in standalone / development builds.
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    }
+  } catch (error) {
+    console.info('[NotificationService] Push notifications fallback enabled.');
+  }
+} else {
+  console.info('[NotificationService] Native push notifications disabled in Expo Go (SDK 53+). Active in development build.');
+}
 
 export class NotificationService {
   /**
@@ -19,6 +37,9 @@ export class NotificationService {
    */
   static async requestPermissions(): Promise<boolean> {
     try {
+      if (!Notifications?.requestPermissionsAsync) {
+        return true; // Graceful mock in Expo Go
+      }
       const { status } = await Notifications.requestPermissionsAsync();
       return status === 'granted';
     } catch (error) {
@@ -38,22 +59,24 @@ export class NotificationService {
         Vibration.vibrate([0, 500, 200, 500, 200, 800]);
       }
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `🚨 [${alert.severity}] ${alert.title}`,
-          body: alert.body,
-          data: {
-            alertId: alert.id,
-            severity: alert.severity,
-            actionRequired: alert.actionRequired,
+      if (Notifications?.scheduleNotificationAsync) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🚨 [${alert.severity}] ${alert.title}`,
+            body: alert.body,
+            data: {
+              alertId: alert.id,
+              severity: alert.severity,
+              actionRequired: alert.actionRequired,
+            },
+            sound: true,
+            priority: isCritical
+              ? (Notifications.AndroidNotificationPriority?.MAX || 5)
+              : (Notifications.AndroidNotificationPriority?.DEFAULT || 3),
           },
-          sound: true,
-          priority: isCritical
-            ? Notifications.AndroidNotificationPriority.MAX
-            : Notifications.AndroidNotificationPriority.DEFAULT,
-        },
-        trigger: null,
-      });
+          trigger: null,
+        });
+      }
     } catch (error) {
       console.warn('Error scheduling alert notification:', error);
     }
